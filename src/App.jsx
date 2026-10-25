@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ArrowLeftRight, Settings, Undo2, X } from 'lucide-react'
 import './App.css'
 
@@ -21,6 +21,8 @@ function App() {
   const [discipline, setDiscipline] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [resetConfirmationOpen, setResetConfirmationOpen] = useState(false)
+  const settingsButtonRef = useRef(null)
+  const settingsPanelRef = useRef(null)
   const [scoreboard, setScoreboard] = useState({
     scores: [0, 0],
     homeSide: 0,
@@ -31,6 +33,27 @@ function App() {
     matchOver: false,
     undoStack: [],
   })
+
+  useEffect(() => {
+    if (!settingsOpen) {
+      return undefined
+    }
+
+    function handleOutsideClick(event) {
+      if (
+        settingsPanelRef.current?.contains(event.target) ||
+        settingsButtonRef.current?.contains(event.target)
+      ) {
+        return
+      }
+
+      setSettingsOpen(false)
+      setResetConfirmationOpen(false)
+    }
+
+    document.addEventListener('click', handleOutsideClick)
+    return () => document.removeEventListener('click', handleOutsideClick)
+  }, [settingsOpen])
 
   function incrementScore(side) {
     setScoreboard((current) => {
@@ -174,6 +197,7 @@ function App() {
         <Undo2 aria-hidden="true" />
       </button>
       <button
+        ref={settingsButtonRef}
         className="settings-button"
         type="button"
         aria-label="Settings"
@@ -186,6 +210,7 @@ function App() {
       </button>
       {settingsOpen && (
         <section
+          ref={settingsPanelRef}
           className="settings-panel"
           role="dialog"
           aria-labelledby="settings-title"
@@ -277,7 +302,13 @@ function App() {
           key={side}
           aria-label={`${side === scoreboard.homeSide ? teamNames.home || 'Heim' : teamNames.guest || 'Gast'} score: ${score}`}
           disabled={scoreboard.gameOver}
-          onClick={() => incrementScore(side)}
+          onClick={(event) => {
+            if (settingsOpen) {
+              return
+            }
+
+            incrementScore(side)
+          }}
         >
           <span className="score-tile__value">{score}</span>
           <span className="score-tile__label">
