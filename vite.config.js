@@ -6,7 +6,7 @@ export default defineVitestConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
-    setupFiles: './src/test/setup.js',
+    setupFiles: './src/test/setup.ts',
     css: false,
   },
 })

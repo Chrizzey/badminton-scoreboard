@@ -1,28 +1,32 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import App from '../App.jsx'
+import App from '../App'
 
-function scoreTiles() {
-  return screen.getAllByRole('button', { name: /score: \d+$/ })
+function scoreTiles(): HTMLButtonElement[] {
+  return screen.getAllByRole('button', { name: /score: \d+$/ }) as HTMLButtonElement[]
 }
 
-function points() {
-  return scoreTiles().map((tile) => tile.querySelector('.score-tile__value').textContent)
+function points(): string[] {
+  return scoreTiles().map(
+    (tile) => tile.querySelector<HTMLElement>('.score-tile__value')?.textContent ?? '',
+  )
 }
 
-function matchScore() {
-  return [...document.querySelectorAll('.games-indicator__score')].map((node) => node.textContent)
+function matchScore(): string[] {
+  return [...document.querySelectorAll<HTMLElement>('.games-indicator__score')].map(
+    (node) => node.textContent ?? '',
+  )
 }
 
-function clickTile(index, count = 1) {
+function clickTile(index: number, count = 1): void {
   const tile = () => scoreTiles()[index]
   for (let point = 0; point < count; point += 1) {
     fireEvent.click(tile())
   }
 }
 
-function winGame(index, pointsToWin = 21) {
+function winGame(index: number, pointsToWin = 21): void {
   clickTile(index, pointsToWin)
 }
 
@@ -173,7 +177,7 @@ describe('badminton scoreboard UI', () => {
     expect(points()).toEqual(['1', '0'])
 
     fireEvent.click(screen.getByRole('button', { name: 'Spielstand und Historie zurücksetzen' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Zurücksetzen', exact: true }))
+    fireEvent.click(screen.getByRole('button', { name: /^Zurücksetzen$/ }))
     expect(points()).toEqual(['0', '0'])
     expect(matchScore()).toEqual(['0', '0'])
     expect(screen.queryByLabelText('Scores of completed games')).not.toBeInTheDocument()

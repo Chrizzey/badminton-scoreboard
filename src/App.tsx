@@ -2,17 +2,39 @@ import { useEffect, useRef, useState } from 'react'
 import { ArrowLeftRight, Settings, Undo2, X } from 'lucide-react'
 import './App.css'
 
-function swapSideState(state) {
+type Side = 0 | 1
+type ScorePair = [number, number]
+
+interface GameResult {
+  scores: ScorePair
+  winner: Side
+}
+
+interface ScoreboardSnapshot {
+  scores: ScorePair
+  homeSide: Side
+  games: ScorePair
+  gameHistory: GameResult[]
+  endsSwitched: boolean
+  gameOver: boolean
+  matchOver: boolean
+}
+
+interface ScoreboardState extends ScoreboardSnapshot {
+  undoStack: ScoreboardSnapshot[]
+}
+
+function swapSideState(state: ScoreboardSnapshot): ScoreboardSnapshot {
   return {
     ...state,
-    scores: [...state.scores].reverse(),
-    games: [...state.games].reverse(),
+    scores: [state.scores[1], state.scores[0]],
+    games: [state.games[1], state.games[0]],
     gameHistory: state.gameHistory.map((game) => ({
       ...game,
-      scores: [...game.scores].reverse(),
-      winner: 1 - game.winner,
+      scores: [game.scores[1], game.scores[0]],
+      winner: (1 - game.winner) as Side,
     })),
-    homeSide: 1 - state.homeSide,
+    homeSide: (1 - state.homeSide) as Side,
   }
 }
 
@@ -21,9 +43,9 @@ function App() {
   const [discipline, setDiscipline] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [resetConfirmationOpen, setResetConfirmationOpen] = useState(false)
-  const settingsButtonRef = useRef(null)
-  const settingsPanelRef = useRef(null)
-  const [scoreboard, setScoreboard] = useState({
+  const settingsButtonRef = useRef<HTMLButtonElement | null>(null)
+  const settingsPanelRef = useRef<HTMLElement | null>(null)
+  const [scoreboard, setScoreboard] = useState<ScoreboardState>({
     scores: [0, 0],
     homeSide: 0,
     games: [0, 0],
@@ -39,7 +61,11 @@ function App() {
       return undefined
     }
 
-    function handleOutsideClick(event) {
+    function handleOutsideClick(event: MouseEvent) {
+      if (!(event.target instanceof Node)) {
+        return
+      }
+
       if (
         settingsPanelRef.current?.contains(event.target) ||
         settingsButtonRef.current?.contains(event.target)
@@ -55,14 +81,14 @@ function App() {
     return () => document.removeEventListener('click', handleOutsideClick)
   }, [settingsOpen])
 
-  function incrementScore(side) {
+  function incrementScore(side: Side) {
     setScoreboard((current) => {
       if (current.gameOver) {
         return current
       }
 
       const { undoStack, ...previousState } = current
-      const scores = [...current.scores]
+      const scores: ScorePair = [...current.scores]
       scores[side] += 1
 
       const opponent = 1 - side
@@ -92,7 +118,7 @@ function App() {
         }
       }
 
-      const games = [...current.games]
+      const games: ScorePair = [...current.games]
       games[side] += 1
       const matchWon = games[side] === 2
 
@@ -302,12 +328,12 @@ function App() {
           key={side}
           aria-label={`${side === scoreboard.homeSide ? teamNames.home || 'Heim' : teamNames.guest || 'Gast'} score: ${score}`}
           disabled={scoreboard.gameOver}
-          onClick={(event) => {
+          onClick={() => {
             if (settingsOpen) {
               return
             }
 
-            incrementScore(side)
+            incrementScore(side as Side)
           }}
         >
           <span className="score-tile__value">{score}</span>
