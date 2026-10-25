@@ -20,6 +20,7 @@ function App() {
   const [teamNames, setTeamNames] = useState({ home: 'Heim', guest: 'Gast' })
   const [discipline, setDiscipline] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [resetConfirmationOpen, setResetConfirmationOpen] = useState(false)
   const [scoreboard, setScoreboard] = useState({
     scores: [0, 0],
     homeSide: 0,
@@ -27,6 +28,7 @@ function App() {
     gameHistory: [],
     endsSwitched: false,
     gameOver: false,
+    matchOver: false,
     undoStack: [],
   })
 
@@ -69,6 +71,7 @@ function App() {
 
       const games = [...current.games]
       games[side] += 1
+      const matchWon = games[side] === 2
 
       return {
         ...current,
@@ -76,6 +79,7 @@ function App() {
         games,
         gameHistory: [...current.gameHistory, { scores, winner: side }],
         gameOver: true,
+        matchOver: matchWon,
         undoStack: [...undoStack, previousState],
       }
     })
@@ -92,6 +96,41 @@ function App() {
         undoStack: [...undoStack, previousState],
       }
     })
+  }
+
+  function startNewMatch() {
+    setScoreboard((current) => {
+      const { undoStack, ...previousState } = current
+      return {
+        ...current,
+        scores: [0, 0],
+        homeSide: 0,
+        games: [0, 0],
+        gameHistory: [],
+        endsSwitched: false,
+        gameOver: false,
+        matchOver: false,
+        undoStack: [...undoStack, previousState],
+      }
+    })
+  }
+
+  function resetScoreAndHistory() {
+    setScoreboard((current) => {
+      const { undoStack, ...previousState } = current
+      return {
+        ...current,
+        scores: [0, 0],
+        games: [0, 0],
+        gameHistory: [],
+        endsSwitched: false,
+        gameOver: false,
+        matchOver: false,
+        undoStack: [...undoStack, previousState],
+      }
+    })
+    setResetConfirmationOpen(false)
+    setSettingsOpen(false)
   }
 
   function undoLastAction() {
@@ -201,6 +240,34 @@ function App() {
               <option value="MX">MX</option>
             </select>
           </label>
+          <button
+            className="settings-reset-button"
+            type="button"
+            onClick={() => setResetConfirmationOpen(true)}
+          >
+            Spielstand und Historie zurücksetzen
+          </button>
+          {resetConfirmationOpen && (
+            <div className="reset-confirmation" role="group" aria-label="Reset bestätigen">
+              <p>Spielstand und gesamte Historie wirklich zurücksetzen?</p>
+              <div className="reset-confirmation__actions">
+                <button
+                  className="reset-confirmation__cancel"
+                  type="button"
+                  onClick={() => setResetConfirmationOpen(false)}
+                >
+                  Abbrechen
+                </button>
+                <button
+                  className="reset-confirmation__confirm"
+                  type="button"
+                  onClick={resetScoreAndHistory}
+                >
+                  Zurücksetzen
+                </button>
+              </div>
+            </div>
+          )}
         </section>
       )}
       {scoreboard.scores.map((score, side) => (
@@ -266,13 +333,30 @@ function App() {
       </aside>
       {scoreboard.gameOver && (
         <div className="next-game-overlay">
-          <button
-            className="next-game-button"
-            type="button"
-            onClick={startNextGame}
-          >
-            Next game
-          </button>
+          {scoreboard.matchOver ? (
+            <div className="match-over-content">
+              <div className="match-over-message" role="status">
+                Match gewonnen: {scoreboard.homeSide === scoreboard.games.indexOf(2)
+                  ? teamNames.home || 'Heim'
+                  : teamNames.guest || 'Gast'}
+              </div>
+              <button
+                className="next-game-button"
+                type="button"
+                onClick={startNewMatch}
+              >
+                Neues Match
+              </button>
+            </div>
+          ) : (
+            <button
+              className="next-game-button"
+              type="button"
+              onClick={startNextGame}
+            >
+              {scoreboard.gameHistory.length === 1 ? '2. Satz' : '3. Satz'}
+            </button>
+          )}
         </div>
       )}
     </main>

@@ -265,6 +265,79 @@
   outline-offset: 2px;
 }
 
+.settings-reset-button {
+  width: 100%;
+  min-height: 2.75rem;
+  margin-top: 0.25rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #c13b42;
+  border-radius: 3px;
+  color: #a5232b;
+  background: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.settings-reset-button:hover {
+  color: #fff;
+  background: #b92d36;
+}
+
+.settings-reset-button:focus-visible {
+  outline: 2px solid #1769e8;
+  outline-offset: 2px;
+}
+
+.reset-confirmation {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid #d7a0a3;
+  border-radius: 3px;
+  background: #fff6f6;
+}
+
+.reset-confirmation p {
+  margin: 0;
+  color: #50282a;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.reset-confirmation__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.reset-confirmation__actions button {
+  min-height: 2.25rem;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #aab3c0;
+  border-radius: 3px;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.reset-confirmation__cancel {
+  color: #263241;
+  background: #fff;
+}
+
+.reset-confirmation__confirm {
+  border-color: #a5232b !important;
+  color: #fff;
+  background: #a5232b;
+  font-weight: 700 !important;
+}
+
+.reset-confirmation__actions button:focus-visible {
+  outline: 2px solid #1769e8;
+  outline-offset: 2px;
+}
+
 .past-games {
   display: grid;
   grid-auto-rows: 1.6em;
@@ -331,6 +404,25 @@
   font-weight: 700;
   cursor: pointer;
   touch-action: manipulation;
+}
+
+.match-over-message {
+  padding: 0.75em 1em;
+  border: 2px solid #fff;
+  border-radius: 4px;
+  color: #17202b;
+  background: #fff;
+  font-size: clamp(1.25rem, 3vw, 2rem);
+  font-weight: 700;
+  text-align: center;
+}
+
+.match-over-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  max-width: calc(100% - 2rem);
 }
 
 .next-game-button:focus-visible {
