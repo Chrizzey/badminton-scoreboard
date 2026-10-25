@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeftRight, Settings, Undo2, X } from 'lucide-react'
+import { createPortal } from 'react-dom'
+import { ArrowLeftRight, Maximize, Minimize, Settings, Undo2, X } from 'lucide-react'
 import Scoreboard, { type ScoreboardSide } from './components/Scoreboard'
 import './App.css'
 
@@ -8,6 +9,7 @@ function App() {
   const [discipline, setDiscipline] = useState('')
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [resetConfirmationOpen, setResetConfirmationOpen] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null)
   const settingsPanelRef = useRef<HTMLElement | null>(null)
 
@@ -21,9 +23,10 @@ function App() {
         return
       }
 
+      const eventPath = event.composedPath()
       if (
-        settingsPanelRef.current?.contains(event.target) ||
-        settingsButtonRef.current?.contains(event.target)
+        (settingsPanelRef.current && eventPath.includes(settingsPanelRef.current)) ||
+        (settingsButtonRef.current && eventPath.includes(settingsButtonRef.current))
       ) {
         return
       }
@@ -35,6 +38,27 @@ function App() {
     document.addEventListener('click', handleOutsideClick)
     return () => document.removeEventListener('click', handleOutsideClick)
   }, [settingsOpen])
+
+  useEffect(() => {
+    function handleFullscreenChange() {
+      setIsFullscreen(document.fullscreenElement === document.documentElement)
+    }
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen()
+      } else {
+        await document.documentElement.requestFullscreen()
+      }
+    } catch {
+      // Fullscreen may be unavailable or disallowed by the current browser context.
+    }
+  }
 
   return (
     <Scoreboard>
@@ -62,13 +86,25 @@ function App() {
       >
         <Settings aria-hidden="true" />
       </button>
-      {settingsOpen && (
-        <section
-          ref={settingsPanelRef}
-          className="settings-panel"
-          role="dialog"
-          aria-labelledby="settings-title"
-        >
+      <button
+        className="fullscreen-button"
+        type="button"
+        aria-label={isFullscreen ? 'Vollbild verlassen' : 'Vollbild aktivieren'}
+        title={isFullscreen ? 'Vollbild verlassen' : 'Vollbild aktivieren'}
+        aria-pressed={isFullscreen}
+        onClick={toggleFullscreen}
+      >
+        {isFullscreen ? <Minimize aria-hidden="true" /> : <Maximize aria-hidden="true" />}
+      </button>
+      {settingsOpen && createPortal(
+        <div className="settings-overlay">
+          <section
+            ref={settingsPanelRef}
+            className="settings-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-title"
+          >
           <header className="settings-panel__header">
             <h2 id="settings-title">Einstellungen</h2>
             <button
@@ -151,7 +187,9 @@ function App() {
               </div>
             </div>
           )}
-        </section>
+          </section>
+        </div>,
+        document.body,
       )}
       {scoreboard.scores.map((score, side) => (
         <button

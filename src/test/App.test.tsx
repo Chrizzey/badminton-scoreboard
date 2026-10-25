@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import App from '../App'
 import Scoreboard, { type ScoreboardModel } from '../components/Scoreboard'
 
@@ -194,6 +194,92 @@ describe('badminton scoreboard UI', () => {
 
     expect(points()).toEqual(['0', '0'])
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('keeps settings open when cancelling the reset confirmation', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Spielstand und Historie zurücksetzen' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }))
+
+    expect(screen.getByRole('dialog', { name: 'Einstellungen' })).toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: 'Reset bestätigen' })).not.toBeInTheDocument()
+  })
+
+  it('enters and exits browser fullscreen from the fullscreen control', async () => {
+    const user = userEvent.setup()
+    const originalRequestFullscreen = Object.getOwnPropertyDescriptor(
+      document.documentElement,
+      'requestFullscreen',
+    )
+    const originalExitFullscreen = Object.getOwnPropertyDescriptor(document, 'exitFullscreen')
+    const originalFullscreenElement = Object.getOwnPropertyDescriptor(document, 'fullscreenElement')
+    const requestFullscreen = vi.fn(async () => {
+      Object.defineProperty(document, 'fullscreenElement', {
+        configurable: true,
+        value: document.documentElement,
+      })
+      document.dispatchEvent(new Event('fullscreenchange'))
+    })
+    const exitFullscreen = vi.fn(async () => {
+      Object.defineProperty(document, 'fullscreenElement', {
+        configurable: true,
+        value: null,
+      })
+      document.dispatchEvent(new Event('fullscreenchange'))
+    })
+
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: requestFullscreen,
+    })
+    Object.defineProperty(document, 'exitFullscreen', {
+      configurable: true,
+      value: exitFullscreen,
+    })
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      value: null,
+    })
+
+    try {
+      render(<App />)
+
+      await user.click(screen.getByRole('button', { name: 'Vollbild aktivieren' }))
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Vollbild verlassen' })).toHaveAttribute(
+          'aria-pressed',
+          'true',
+        ),
+      )
+      expect(requestFullscreen).toHaveBeenCalledOnce()
+
+      await user.click(screen.getByRole('button', { name: 'Vollbild verlassen' }))
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Vollbild aktivieren' })).toHaveAttribute(
+          'aria-pressed',
+          'false',
+        ),
+      )
+      expect(exitFullscreen).toHaveBeenCalledOnce()
+    } finally {
+      if (originalRequestFullscreen) {
+        Object.defineProperty(document.documentElement, 'requestFullscreen', originalRequestFullscreen)
+      } else {
+        Reflect.deleteProperty(document.documentElement, 'requestFullscreen')
+      }
+      if (originalExitFullscreen) {
+        Object.defineProperty(document, 'exitFullscreen', originalExitFullscreen)
+      } else {
+        Reflect.deleteProperty(document, 'exitFullscreen')
+      }
+      if (originalFullscreenElement) {
+        Object.defineProperty(document, 'fullscreenElement', originalFullscreenElement)
+      } else {
+        Reflect.deleteProperty(document, 'fullscreenElement')
+      }
+    }
   })
 
   it('requires reset confirmation, resets score and history, and supports undo', () => {
