@@ -2,6 +2,20 @@ import { useState } from 'react'
 import { ArrowLeftRight, Settings, Undo2 } from 'lucide-react'
 import './App.css'
 
+function swapSideState(state) {
+  return {
+    ...state,
+    scores: [...state.scores].reverse(),
+    games: [...state.games].reverse(),
+    gameHistory: state.gameHistory.map((game) => ({
+      ...game,
+      scores: [...game.scores].reverse(),
+      winner: 1 - game.winner,
+    })),
+    homeSide: 1 - state.homeSide,
+  }
+}
+
 function App() {
   const [scoreboard, setScoreboard] = useState({
     scores: [0, 0],
@@ -53,7 +67,7 @@ function App() {
     setScoreboard((current) => {
       const { undoStack, ...previousState } = current
       return {
-        ...current,
+        ...swapSideState(current),
         scores: [0, 0],
         gameOver: false,
         undoStack: [...undoStack, previousState],
@@ -83,15 +97,7 @@ function App() {
 
       const { undoStack, ...previousState } = current
       return {
-        ...current,
-        scores: [...current.scores].reverse(),
-        games: [...current.games].reverse(),
-        gameHistory: current.gameHistory.map((game) => ({
-          ...game,
-          scores: [...game.scores].reverse(),
-          winner: 1 - game.winner,
-        })),
-        homeSide: 1 - current.homeSide,
+        ...swapSideState(current),
         undoStack: [...undoStack, previousState],
       }
     })
