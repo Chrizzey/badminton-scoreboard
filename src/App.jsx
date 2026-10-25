@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeftRight, Settings, Undo2 } from 'lucide-react'
+import { ArrowLeftRight, Settings, Undo2, X } from 'lucide-react'
 import './App.css'
 
 function swapSideState(state) {
@@ -17,6 +17,9 @@ function swapSideState(state) {
 }
 
 function App() {
+  const [teamNames, setTeamNames] = useState({ home: 'Heim', guest: 'Gast' })
+  const [discipline, setDiscipline] = useState('')
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [scoreboard, setScoreboard] = useState({
     scores: [0, 0],
     homeSide: 0,
@@ -120,25 +123,89 @@ function App() {
         type="button"
         aria-label="Settings"
         title="Settings"
+        aria-haspopup="dialog"
+        aria-expanded={settingsOpen}
+        onClick={() => setSettingsOpen((open) => !open)}
       >
         <Settings aria-hidden="true" />
       </button>
+      {settingsOpen && (
+        <section
+          className="settings-panel"
+          role="dialog"
+          aria-labelledby="settings-title"
+        >
+          <header className="settings-panel__header">
+            <h2 id="settings-title">Einstellungen</h2>
+            <button
+              className="settings-panel__close"
+              type="button"
+              aria-label="Einstellungen schließen"
+              onClick={() => setSettingsOpen(false)}
+            >
+              <X aria-hidden="true" />
+            </button>
+          </header>
+          <label className="settings-field">
+            <span>Heim</span>
+            <input
+              type="text"
+              value={teamNames.home}
+              maxLength={20}
+              onChange={(event) =>
+                setTeamNames((current) => ({ ...current, home: event.target.value }))
+              }
+            />
+          </label>
+          <label className="settings-field">
+            <span>Gast</span>
+            <input
+              type="text"
+              value={teamNames.guest}
+              maxLength={20}
+              onChange={(event) =>
+                setTeamNames((current) => ({ ...current, guest: event.target.value }))
+              }
+            />
+          </label>
+          <label className="settings-field">
+            <span>Disziplin</span>
+            <select
+              value={discipline}
+              onChange={(event) => setDiscipline(event.target.value)}
+            >
+              <option value="">Keine</option>
+              <option value="HD1">HD1</option>
+              <option value="HD2">HD2</option>
+              <option value="DD">DD</option>
+              <option value="HE1">HE1</option>
+              <option value="HE2">HE2</option>
+              <option value="DE">DE</option>
+              <option value="HE3">HE3</option>
+              <option value="MX">MX</option>
+            </select>
+          </label>
+        </section>
+      )}
       {scoreboard.scores.map((score, side) => (
         <button
           className={`score-tile ${side === 0 ? 'score-tile--blue' : 'score-tile--red'}`}
           type="button"
           key={side}
-          aria-label={`${side === scoreboard.homeSide ? 'Heim' : 'Gast'} score: ${score}`}
+          aria-label={`${side === scoreboard.homeSide ? teamNames.home || 'Heim' : teamNames.guest || 'Gast'} score: ${score}`}
           disabled={scoreboard.gameOver}
           onClick={() => incrementScore(side)}
         >
           <span className="score-tile__value">{score}</span>
           <span className="score-tile__label">
-            {side === scoreboard.homeSide ? 'Heim' : 'Gast'}
+            {side === scoreboard.homeSide
+              ? teamNames.home || 'Heim'
+              : teamNames.guest || 'Gast'}
           </span>
         </button>
       ))}
       <aside className="match-summary">
+        {discipline && <div className="match-discipline">{discipline}</div>}
         <div
           className="games-indicator"
           aria-label={`Games: left ${scoreboard.games[0]}, right ${scoreboard.games[1]}`}
