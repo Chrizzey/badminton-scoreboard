@@ -25,6 +25,7 @@ function App() {
     homeSide: 0,
     games: [0, 0],
     gameHistory: [],
+    endsSwitched: false,
     gameOver: false,
     undoStack: [],
   })
@@ -43,6 +44,20 @@ function App() {
       const gameWon =
         scores[side] === 30 ||
         (scores[side] >= 21 && scores[side] - scores[opponent] >= 2)
+
+      const switchEnds =
+        current.gameHistory.length === 2 &&
+        !current.endsSwitched &&
+        scores[side] === 11
+
+      if (switchEnds) {
+        const switchedState = swapSideState({ ...current, scores })
+        return {
+          ...switchedState,
+          endsSwitched: true,
+          undoStack: [...undoStack, previousState],
+        }
+      }
 
       if (!gameWon) {
         return {
@@ -72,6 +87,7 @@ function App() {
       return {
         ...swapSideState(current),
         scores: [0, 0],
+        endsSwitched: false,
         gameOver: false,
         undoStack: [...undoStack, previousState],
       }
