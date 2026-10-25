@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import App from '../App'
+import Scoreboard, { type ScoreboardModel } from '../components/Scoreboard'
 
 function scoreTiles(): HTMLButtonElement[] {
   return screen.getAllByRole('button', { name: /score: \d+$/ }) as HTMLButtonElement[]
@@ -31,6 +32,38 @@ function winGame(index: number, pointsToWin = 21): void {
 }
 
 describe('badminton scoreboard UI', () => {
+  it('exposes home/guest scores and completed-game history to its parent', () => {
+    let model!: ScoreboardModel
+
+    render(
+      <Scoreboard>
+        {(scoreboard) => {
+          model = scoreboard
+          return (
+            <div>
+              <output aria-label="Home score">{scoreboard.homeScore}</output>
+              <output aria-label="Guest score">{scoreboard.guestScore}</output>
+              <output aria-label="Past-game scores">
+                {JSON.stringify(scoreboard.gameHistory.map((game) => game.scores))}
+              </output>
+              <button onClick={() => scoreboard.incrementScore(0)}>Score for Heim</button>
+            </div>
+          )
+        }}
+      </Scoreboard>,
+    )
+
+    expect(screen.getByLabelText('Home score')).toHaveTextContent('0')
+    expect(screen.getByLabelText('Guest score')).toHaveTextContent('0')
+
+    for (let point = 0; point < 21; point += 1) {
+      fireEvent.click(screen.getByRole('button', { name: 'Score for Heim' }))
+    }
+    expect(model.homeScore).toBe(21)
+    expect(model.guestScore).toBe(0)
+    expect(model.gameHistory.map((game) => game.scores)).toEqual([[21, 0]])
+  })
+
   it('starts at 0-0 with Heim and Gast', () => {
     render(<App />)
 

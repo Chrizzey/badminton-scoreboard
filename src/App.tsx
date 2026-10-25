@@ -1,42 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeftRight, Settings, Undo2, X } from 'lucide-react'
+import Scoreboard, { type ScoreboardSide } from './components/Scoreboard'
 import './App.css'
-
-type Side = 0 | 1
-type ScorePair = [number, number]
-
-interface GameResult {
-  scores: ScorePair
-  winner: Side
-}
-
-interface ScoreboardSnapshot {
-  scores: ScorePair
-  homeSide: Side
-  games: ScorePair
-  gameHistory: GameResult[]
-  endsSwitched: boolean
-  gameOver: boolean
-  matchOver: boolean
-}
-
-interface ScoreboardState extends ScoreboardSnapshot {
-  undoStack: ScoreboardSnapshot[]
-}
-
-function swapSideState(state: ScoreboardSnapshot): ScoreboardSnapshot {
-  return {
-    ...state,
-    scores: [state.scores[1], state.scores[0]],
-    games: [state.games[1], state.games[0]],
-    gameHistory: state.gameHistory.map((game) => ({
-      ...game,
-      scores: [game.scores[1], game.scores[0]],
-      winner: (1 - game.winner) as Side,
-    })),
-    homeSide: (1 - state.homeSide) as Side,
-  }
-}
 
 function App() {
   const [teamNames, setTeamNames] = useState({ home: 'Heim', guest: 'Gast' })
@@ -45,16 +10,6 @@ function App() {
   const [resetConfirmationOpen, setResetConfirmationOpen] = useState(false)
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null)
   const settingsPanelRef = useRef<HTMLElement | null>(null)
-  const [scoreboard, setScoreboard] = useState<ScoreboardState>({
-    scores: [0, 0],
-    homeSide: 0,
-    games: [0, 0],
-    gameHistory: [],
-    endsSwitched: false,
-    gameOver: false,
-    matchOver: false,
-    undoStack: [],
-  })
 
   useEffect(() => {
     if (!settingsOpen) {
@@ -81,144 +36,17 @@ function App() {
     return () => document.removeEventListener('click', handleOutsideClick)
   }, [settingsOpen])
 
-  function incrementScore(side: Side) {
-    setScoreboard((current) => {
-      if (current.gameOver) {
-        return current
-      }
-
-      const { undoStack, ...previousState } = current
-      const scores: ScorePair = [...current.scores]
-      scores[side] += 1
-
-      const opponent = 1 - side
-      const gameWon =
-        scores[side] === 30 ||
-        (scores[side] >= 21 && scores[side] - scores[opponent] >= 2)
-
-      const switchEnds =
-        current.gameHistory.length === 2 &&
-        !current.endsSwitched &&
-        scores[side] === 11
-
-      if (switchEnds) {
-        const switchedState = swapSideState({ ...current, scores })
-        return {
-          ...switchedState,
-          endsSwitched: true,
-          undoStack: [...undoStack, previousState],
-        }
-      }
-
-      if (!gameWon) {
-        return {
-          ...current,
-          scores,
-          undoStack: [...undoStack, previousState],
-        }
-      }
-
-      const games: ScorePair = [...current.games]
-      games[side] += 1
-      const matchWon = games[side] === 2
-
-      return {
-        ...current,
-        scores,
-        games,
-        gameHistory: [...current.gameHistory, { scores, winner: side }],
-        gameOver: true,
-        matchOver: matchWon,
-        undoStack: [...undoStack, previousState],
-      }
-    })
-  }
-
-  function startNextGame() {
-    setScoreboard((current) => {
-      const { undoStack, ...previousState } = current
-      return {
-        ...swapSideState(current),
-        scores: [0, 0],
-        endsSwitched: false,
-        gameOver: false,
-        undoStack: [...undoStack, previousState],
-      }
-    })
-  }
-
-  function startNewMatch() {
-    setScoreboard((current) => {
-      const { undoStack, ...previousState } = current
-      return {
-        ...current,
-        scores: [0, 0],
-        homeSide: 0,
-        games: [0, 0],
-        gameHistory: [],
-        endsSwitched: false,
-        gameOver: false,
-        matchOver: false,
-        undoStack: [...undoStack, previousState],
-      }
-    })
-  }
-
-  function resetScoreAndHistory() {
-    setScoreboard((current) => {
-      const { undoStack, ...previousState } = current
-      return {
-        ...current,
-        scores: [0, 0],
-        games: [0, 0],
-        gameHistory: [],
-        endsSwitched: false,
-        gameOver: false,
-        matchOver: false,
-        undoStack: [...undoStack, previousState],
-      }
-    })
-    setResetConfirmationOpen(false)
-    setSettingsOpen(false)
-  }
-
-  function undoLastAction() {
-    setScoreboard((current) => {
-      if (current.undoStack.length === 0) {
-        return current
-      }
-
-      const previousState = current.undoStack[current.undoStack.length - 1]
-      return {
-        ...previousState,
-        undoStack: current.undoStack.slice(0, -1),
-      }
-    })
-  }
-
-  function switchSides() {
-    setScoreboard((current) => {
-      if (current.scores[0] !== 0 || current.scores[1] !== 0) {
-        return current
-      }
-
-      const { undoStack, ...previousState } = current
-      return {
-        ...swapSideState(current),
-        undoStack: [...undoStack, previousState],
-      }
-    })
-  }
-
   return (
+    <Scoreboard>
+      {(scoreboard) => (
     <main className="scoreboard">
       <button
         className="undo-button"
         type="button"
         aria-label="Undo last action"
         title="Undo last action"
-        disabled={scoreboard.undoStack.length === 0}
-        onClick={undoLastAction}
+        disabled={!scoreboard.canUndo}
+        onClick={scoreboard.undoLastAction}
       >
         <Undo2 aria-hidden="true" />
       </button>
@@ -312,7 +140,11 @@ function App() {
                 <button
                   className="reset-confirmation__confirm"
                   type="button"
-                  onClick={resetScoreAndHistory}
+                  onClick={() => {
+                    scoreboard.resetScoreAndHistory()
+                    setResetConfirmationOpen(false)
+                    setSettingsOpen(false)
+                  }}
                 >
                   Zurücksetzen
                 </button>
@@ -333,7 +165,7 @@ function App() {
               return
             }
 
-            incrementScore(side as Side)
+            scoreboard.incrementScore(side as ScoreboardSide)
           }}
         >
           <span className="score-tile__value">{score}</span>
@@ -364,7 +196,7 @@ function App() {
             type="button"
             aria-label="Heim und Gast tauschen"
             title="Heim und Gast tauschen"
-            onClick={switchSides}
+            onClick={scoreboard.switchSides}
           >
             <ArrowLeftRight aria-hidden="true" />
           </button>
@@ -400,7 +232,7 @@ function App() {
               <button
                 className="next-game-button"
                 type="button"
-                onClick={startNewMatch}
+                onClick={scoreboard.startNewMatch}
               >
                 Neues Match
               </button>
@@ -409,7 +241,7 @@ function App() {
             <button
               className="next-game-button"
               type="button"
-              onClick={startNextGame}
+              onClick={scoreboard.startNextGame}
             >
               {scoreboard.gameHistory.length === 1 ? '2. Satz' : '3. Satz'}
             </button>
@@ -417,6 +249,8 @@ function App() {
         </div>
       )}
     </main>
+      )}
+    </Scoreboard>
   )
 }
 
