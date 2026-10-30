@@ -2,16 +2,48 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeftRight, Maximize, Minimize, Settings, Undo2, X } from 'lucide-react'
 import Scoreboard, { type ScoreboardSide } from './components/Scoreboard'
+import { ScoringSystem } from './components/scoringSystem'
 import './App.css'
 
-function App() {
+interface AppProps {
+  scoringSystem?: ScoringSystem
+}
+
+const scoringModes = [
+  {
+    value: 'bestOfThreeTo21',
+    label: '3x21',
+    scoringSystem: ScoringSystem.bestOfThreeTo21,
+  },
+  {
+    value: 'bestOfThreeTo15',
+    label: '3x15',
+    scoringSystem: ScoringSystem.bestOfThreeTo15,
+  },
+  {
+    value: 'bestOfFiveTo11',
+    label: '5x11',
+    scoringSystem: ScoringSystem.bestOfFiveTo11,
+  },
+] as const
+
+function App({ scoringSystem }: AppProps) {
   const [teamNames, setTeamNames] = useState({ home: 'Heim', guest: 'Gast' })
   const [discipline, setDiscipline] = useState('')
+  const [selectedScoringSystem, setSelectedScoringSystem] = useState(
+    () => scoringSystem ?? ScoringSystem.bestOfThreeTo21,
+  )
+  const [pendingScoringSystem, setPendingScoringSystem] = useState<ScoringSystem | null>(null)
+  const [modeSwitchConfirmationOpen, setModeSwitchConfirmationOpen] = useState(false)
+  const [scoreboardInstance, setScoreboardInstance] = useState(0)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [resetConfirmationOpen, setResetConfirmationOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const settingsButtonRef = useRef<HTMLButtonElement | null>(null)
   const settingsPanelRef = useRef<HTMLElement | null>(null)
+  const selectedMode = scoringModes.find(
+    (mode) => mode.scoringSystem === selectedScoringSystem,
+  )?.value ?? 'custom'
 
   useEffect(() => {
     if (!settingsOpen) {
@@ -33,6 +65,8 @@ function App() {
 
       setSettingsOpen(false)
       setResetConfirmationOpen(false)
+      setModeSwitchConfirmationOpen(false)
+      setPendingScoringSystem(null)
     }
 
     document.addEventListener('click', handleOutsideClick)
@@ -61,7 +95,10 @@ function App() {
   }
 
   return (
-    <Scoreboard>
+    <Scoreboard
+      key={scoreboardInstance}
+      scoringSystem={selectedScoringSystem}
+    >
       {(scoreboard) => (
     <main className="scoreboard">
       <button
@@ -155,6 +192,74 @@ function App() {
               <option value="MX">MX</option>
             </select>
           </label>
+          <label className="settings-field">
+            <span>Spielmodus</span>
+            <select
+              value={selectedMode}
+              onChange={(event) => {
+                const nextMode = event.target.value
+                const nextSystem = scoringModes.find((mode) => mode.value === nextMode)
+                  ?.scoringSystem ?? (nextMode === 'custom' ? scoringSystem : undefined)
+
+                if (!nextSystem || nextSystem === selectedScoringSystem) {
+                  return
+                }
+
+                const matchHasStarted =
+                  scoreboard.canUndo ||
+                  scoreboard.gameHistory.length > 0 ||
+                  scoreboard.scores.some((score) => score > 0) ||
+                  scoreboard.games.some((gamesWon) => gamesWon > 0)
+
+                if (matchHasStarted) {
+                  setPendingScoringSystem(nextSystem)
+                  setModeSwitchConfirmationOpen(true)
+                  return
+                }
+
+                setSelectedScoringSystem(nextSystem)
+              }}
+            >
+              {selectedMode === 'custom' && (
+                <option value="custom">Benutzerdefiniert</option>
+              )}
+              {scoringModes.map((mode) => (
+                <option key={mode.value} value={mode.value}>
+                  {mode.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {modeSwitchConfirmationOpen && pendingScoringSystem && (
+            <div className="reset-confirmation" role="group" aria-label="Moduswechsel bestätigen">
+              <p>Ein Moduswechsel setzt Spielstand und Historie zurück. Fortfahren?</p>
+              <div className="reset-confirmation__actions">
+                <button
+                  className="reset-confirmation__cancel"
+                  type="button"
+                  onClick={() => {
+                    setPendingScoringSystem(null)
+                    setModeSwitchConfirmationOpen(false)
+                  }}
+                >
+                  Abbrechen
+                </button>
+                <button
+                  className="reset-confirmation__confirm"
+                  type="button"
+                  onClick={() => {
+                    setSelectedScoringSystem(pendingScoringSystem)
+                    setScoreboardInstance((instance) => instance + 1)
+                    setPendingScoringSystem(null)
+                    setModeSwitchConfirmationOpen(false)
+                    setSettingsOpen(false)
+                  }}
+                >
+                  Modus wechseln
+                </button>
+              </div>
+            </div>
+          )}
           <button
             className="settings-reset-button"
             type="button"
@@ -263,7 +368,9 @@ function App() {
           {scoreboard.matchOver ? (
             <div className="match-over-content">
               <div className="match-over-message" role="status">
-                Match gewonnen: {scoreboard.homeSide === scoreboard.games.indexOf(2)
+                Match gewonnen: {scoreboard.homeSide === scoreboard.games.findIndex(
+                  (gamesWon) => gamesWon >= scoreboard.gamesToWin,
+                )
                   ? teamNames.home || 'Heim'
                   : teamNames.guest || 'Gast'}
               </div>
@@ -281,7 +388,7 @@ function App() {
               type="button"
               onClick={scoreboard.startNextGame}
             >
-              {scoreboard.gameHistory.length === 1 ? '2. Satz' : '3. Satz'}
+              {scoreboard.gameHistory.length + 1}. Satz
             </button>
           )}
         </div>

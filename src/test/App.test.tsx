@@ -3,6 +3,14 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import App from '../App'
 import Scoreboard, { type ScoreboardModel } from '../components/Scoreboard'
+import { ScoringSystem } from '../components/scoringSystem'
+
+const firstToThreeScoringSystem = new ScoringSystem({
+  pointsToWin: 3,
+  pointCap: 3,
+  gamesToWin: 1,
+  maxGames: 1,
+})
 
 function scoreTiles(): HTMLButtonElement[] {
   return screen.getAllByRole('button', { name: /score: \d+$/ }) as HTMLButtonElement[]
@@ -32,6 +40,65 @@ function winGame(index: number, pointsToWin = 21): void {
 }
 
 describe('badminton scoreboard UI', () => {
+  it('provides the configured best-of-three to 15 and best-of-five to 11 systems', () => {
+    expect(ScoringSystem.bestOfThreeTo15.rules).toEqual({
+      pointsToWin: 15,
+      pointCap: 21,
+      gamesToWin: 2,
+      maxGames: 3,
+      endSwitch: {
+        gameNumber: 3,
+        score: 8,
+      },
+    })
+    expect(ScoringSystem.bestOfThreeTo15.isGameWon([14, 13], 0)).toBe(false)
+    expect(ScoringSystem.bestOfThreeTo15.isGameWon([15, 13], 0)).toBe(true)
+    expect(ScoringSystem.bestOfThreeTo15.isGameWon([21, 20], 0)).toBe(true)
+
+    expect(ScoringSystem.bestOfFiveTo11.rules).toEqual({
+      pointsToWin: 11,
+      pointCap: 15,
+      gamesToWin: 3,
+      maxGames: 5,
+      endSwitch: {
+        gameNumber: 5,
+        score: 6,
+      },
+    })
+    expect(ScoringSystem.bestOfFiveTo11.isGameWon([10, 9], 0)).toBe(false)
+    expect(ScoringSystem.bestOfFiveTo11.isGameWon([11, 9], 0)).toBe(true)
+    expect(ScoringSystem.bestOfFiveTo11.isGameWon([15, 14], 0)).toBe(true)
+  })
+
+  it('uses an injected scoring system for game and match rules', () => {
+    let model!: ScoreboardModel
+
+    render(
+      <Scoreboard scoringSystem={firstToThreeScoringSystem}>
+        {(scoreboard) => {
+          model = scoreboard
+          return <button onClick={() => scoreboard.incrementScore(0)}>Score</button>
+        }}
+      </Scoreboard>,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Score' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Score' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Score' }))
+
+    expect(model.gameOver).toBe(true)
+    expect(model.matchOver).toBe(true)
+    expect(model.scores).toEqual([3, 0])
+  })
+
+  it('uses the injected match format when displaying the winner in the app', () => {
+    render(<App scoringSystem={firstToThreeScoringSystem} />)
+
+    clickTile(0, 3)
+
+    expect(screen.getByRole('status')).toHaveTextContent('Match gewonnen: Heim')
+  })
+
   it('exposes home/guest scores and completed-game history to its parent', () => {
     let model!: ScoreboardModel
 
@@ -169,6 +236,22 @@ describe('badminton scoreboard UI', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Match gewonnen: Heim')
   })
 
+  it('retains and displays all five games in a best-of-five match', () => {
+    render(<App scoringSystem={ScoringSystem.bestOfFiveTo11} />)
+
+    for (let gameNumber = 1; gameNumber <= 4; gameNumber += 1) {
+      clickTile(0, 11)
+      fireEvent.click(screen.getByRole('button', { name: `${gameNumber + 1}. Satz` }))
+    }
+
+    clickTile(0, 6)
+    clickTile(1, 5)
+
+    expect(screen.getByRole('status')).toBeInTheDocument()
+    expect(screen.getByLabelText('Scores of completed games').children).toHaveLength(5)
+    expect(screen.getByLabelText('Scores of completed games')).toHaveTextContent('5')
+  })
+
   it('edits team labels and displays the selected discipline in settings', async () => {
     const user = userEvent.setup()
     render(<App />)
@@ -183,6 +266,46 @@ describe('badminton scoreboard UI', () => {
     expect(document.querySelector('.match-discipline')).toHaveTextContent('MX')
 
     await user.click(screen.getByRole('button', { name: 'Einstellungen schließen' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('changes scoring mode from settings before a match starts', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    const dialog = screen.getByRole('dialog', { name: 'Einstellungen' })
+    const scoringMode = within(dialog).getByRole('combobox', { name: 'Spielmodus' })
+    await user.selectOptions(scoringMode, 'bestOfThreeTo15')
+
+    expect(scoringMode).toHaveValue('bestOfThreeTo15')
+    expect(screen.queryByRole('group', { name: 'Moduswechsel bestätigen' })).not.toBeInTheDocument()
+
+    await user.click(within(dialog).getByRole('button', { name: 'Einstellungen schließen' }))
+    clickTile(0, 15)
+    expect(screen.getByRole('button', { name: '2. Satz' })).toBeInTheDocument()
+  })
+
+  it('requires confirmation before changing scoring mode during a match', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    clickTile(0)
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    const dialog = screen.getByRole('dialog', { name: 'Einstellungen' })
+    const scoringMode = within(dialog).getByRole('combobox', { name: 'Spielmodus' })
+    await user.selectOptions(scoringMode, 'bestOfThreeTo15')
+
+    expect(screen.getByRole('group', { name: 'Moduswechsel bestätigen' })).toBeInTheDocument()
+    expect(points()).toEqual(['1', '0'])
+    await user.click(within(dialog).getByRole('button', { name: 'Abbrechen' }))
+    expect(points()).toEqual(['1', '0'])
+    expect(scoringMode).toHaveValue('bestOfThreeTo21')
+
+    await user.selectOptions(scoringMode, 'bestOfThreeTo15')
+    await user.click(within(dialog).getByRole('button', { name: 'Modus wechseln' }))
+
+    expect(points()).toEqual(['0', '0'])
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 

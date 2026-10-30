@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
+import { ScoringSystem, type ScorePair, type ScoreboardSide } from './scoringSystem'
 
-export type ScoreboardSide = 0 | 1
-type ScorePair = [number, number]
+export type { ScoreboardSide } from './scoringSystem'
 
 export interface GameResult {
   scores: ScorePair
@@ -28,6 +28,8 @@ export interface ScoreboardModel {
   homeScore: number
   guestScore: number
   games: ScorePair
+  gamesToWin: number
+  maxGames: number
   gameHistory: GameResult[]
   endsSwitched: boolean
   gameOver: boolean
@@ -42,6 +44,7 @@ export interface ScoreboardModel {
 }
 
 export interface ScoreboardProps {
+  scoringSystem?: ScoringSystem
   children: (model: ScoreboardModel) => ReactNode
 }
 
@@ -59,7 +62,10 @@ function swapSideState(state: ScoreboardSnapshot): ScoreboardSnapshot {
   }
 }
 
-export default function Scoreboard({ children }: ScoreboardProps) {
+export default function Scoreboard({
+  children,
+  scoringSystem = ScoringSystem.bestOfThreeTo21,
+}: ScoreboardProps) {
   const [state, setState] = useState<ScoreboardState>({
     scores: [0, 0],
     homeSide: 0,
@@ -81,15 +87,13 @@ export default function Scoreboard({ children }: ScoreboardProps) {
       const scores: ScorePair = [...current.scores]
       scores[side] += 1
 
-      const opponent = (1 - side) as ScoreboardSide
-      const gameWon =
-        scores[side] === 30 ||
-        (scores[side] >= 21 && scores[side] - scores[opponent] >= 2)
-
-      const switchEnds =
-        current.gameHistory.length === 2 &&
-        !current.endsSwitched &&
-        scores[side] === 11
+      const gameWon = scoringSystem.isGameWon(scores, side)
+      const switchEnds = scoringSystem.shouldSwitchEnds({
+        scores,
+        side,
+        completedGames: current.gameHistory.length,
+        endsSwitched: current.endsSwitched,
+      })
 
       if (switchEnds) {
         return {
@@ -116,7 +120,7 @@ export default function Scoreboard({ children }: ScoreboardProps) {
         games,
         gameHistory: [...current.gameHistory, { scores, winner: side }],
         gameOver: true,
-        matchOver: games[side] === 2,
+        matchOver: games[side] >= scoringSystem.gamesToWin,
         undoStack: [...undoStack, previousState],
       }
     })
@@ -124,6 +128,14 @@ export default function Scoreboard({ children }: ScoreboardProps) {
 
   function startNextGame() {
     setState((current) => {
+      if (
+        !current.gameOver ||
+        current.matchOver ||
+        current.gameHistory.length >= scoringSystem.maxGames
+      ) {
+        return current
+      }
+
       const { undoStack, ...previousState } = current
       return {
         ...swapSideState(current),
@@ -200,6 +212,8 @@ export default function Scoreboard({ children }: ScoreboardProps) {
     ...state,
     homeScore: state.scores[state.homeSide],
     guestScore: state.scores[(1 - state.homeSide) as ScoreboardSide],
+    gamesToWin: scoringSystem.gamesToWin,
+    maxGames: scoringSystem.maxGames,
     canUndo: state.undoStack.length > 0,
     incrementScore,
     startNextGame,
