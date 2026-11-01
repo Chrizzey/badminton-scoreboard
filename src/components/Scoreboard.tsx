@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ScoringSystem, type ScorePair, type ScoreboardSide } from './scoringSystem'
 
 export type { ScoreboardSide } from './scoringSystem'
@@ -6,6 +6,13 @@ export type { ScoreboardSide } from './scoringSystem'
 export interface GameResult {
   scores: ScorePair
   winner: ScoreboardSide
+}
+
+export interface MatchCompletion {
+  startedAt: number
+  endedAt: number
+  homeSide: ScoreboardSide
+  gameHistory: GameResult[]
 }
 
 interface ScoreboardSnapshot {
@@ -16,6 +23,8 @@ interface ScoreboardSnapshot {
   endsSwitched: boolean
   gameOver: boolean
   matchOver: boolean
+  startedAt: number | null
+  endedAt: number | null
 }
 
 interface ScoreboardState extends ScoreboardSnapshot {
@@ -34,6 +43,8 @@ export interface ScoreboardModel {
   endsSwitched: boolean
   gameOver: boolean
   matchOver: boolean
+  startedAt: number | null
+  endedAt: number | null
   canUndo: boolean
   incrementScore: (side: ScoreboardSide) => void
   startNextGame: () => void
@@ -45,6 +56,7 @@ export interface ScoreboardModel {
 
 export interface ScoreboardProps {
   scoringSystem?: ScoringSystem
+  onMatchComplete?: (match: MatchCompletion) => void
   children: (model: ScoreboardModel) => ReactNode
 }
 
@@ -65,7 +77,9 @@ function swapSideState(state: ScoreboardSnapshot): ScoreboardSnapshot {
 export default function Scoreboard({
   children,
   scoringSystem = ScoringSystem.bestOfThreeTo21,
+  onMatchComplete,
 }: ScoreboardProps) {
+  const lastReportedStartAt = useRef<number | null>(null)
   const [state, setState] = useState<ScoreboardState>({
     scores: [0, 0],
     homeSide: 0,
@@ -74,10 +88,44 @@ export default function Scoreboard({
     endsSwitched: false,
     gameOver: false,
     matchOver: false,
+    startedAt: null,
+    endedAt: null,
     undoStack: [],
   })
 
+  useEffect(() => {
+    if (!state.matchOver) {
+      lastReportedStartAt.current = null
+      return
+    }
+
+    if (
+      !onMatchComplete ||
+      state.startedAt === null ||
+      state.endedAt === null ||
+      lastReportedStartAt.current === state.startedAt
+    ) {
+      return
+    }
+
+    lastReportedStartAt.current = state.startedAt
+    onMatchComplete({
+      startedAt: state.startedAt,
+      endedAt: state.endedAt,
+      homeSide: state.homeSide,
+      gameHistory: state.gameHistory,
+    })
+  }, [
+    onMatchComplete,
+    state.endedAt,
+    state.gameHistory,
+    state.homeSide,
+    state.matchOver,
+    state.startedAt,
+  ])
+
   function incrementScore(side: ScoreboardSide) {
+    const actionTime = Date.now()
     setState((current) => {
       if (current.gameOver) {
         return current
@@ -86,6 +134,7 @@ export default function Scoreboard({
       const { undoStack, ...previousState } = current
       const scores: ScorePair = [...current.scores]
       scores[side] += 1
+      const startedAt = current.startedAt ?? actionTime
 
       const gameWon = scoringSystem.isGameWon(scores, side)
       const switchEnds = scoringSystem.shouldSwitchEnds({
@@ -99,6 +148,8 @@ export default function Scoreboard({
         return {
           ...swapSideState({ ...current, scores }),
           endsSwitched: true,
+          startedAt,
+          endedAt: null,
           undoStack: [...undoStack, previousState],
         }
       }
@@ -107,20 +158,24 @@ export default function Scoreboard({
         return {
           ...current,
           scores,
+          startedAt,
           undoStack: [...undoStack, previousState],
         }
       }
 
       const games: ScorePair = [...current.games]
       games[side] += 1
+      const matchOver = games[side] >= scoringSystem.gamesToWin
 
       return {
         ...current,
         scores,
         games,
         gameHistory: [...current.gameHistory, { scores, winner: side }],
+        startedAt,
+        endedAt: matchOver ? actionTime : null,
         gameOver: true,
-        matchOver: games[side] >= scoringSystem.gamesToWin,
+        matchOver,
         undoStack: [...undoStack, previousState],
       }
     })
@@ -159,6 +214,8 @@ export default function Scoreboard({
         endsSwitched: false,
         gameOver: false,
         matchOver: false,
+        startedAt: null,
+        endedAt: null,
         undoStack: [...undoStack, previousState],
       }
     })
@@ -175,6 +232,8 @@ export default function Scoreboard({
         endsSwitched: false,
         gameOver: false,
         matchOver: false,
+        startedAt: null,
+        endedAt: null,
         undoStack: [...undoStack, previousState],
       }
     })

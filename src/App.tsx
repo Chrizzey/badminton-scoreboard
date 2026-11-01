@@ -1,9 +1,23 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeftRight, Maximize, Minimize, Settings, Undo2, X } from 'lucide-react'
-import Scoreboard, { type ScoreboardSide } from './components/Scoreboard'
+import { ArrowLeftRight, History, Maximize, Minimize, Settings, Undo2, X } from 'lucide-react'
+import Scoreboard, { type MatchCompletion, type ScoreboardSide } from './components/Scoreboard'
+import PastMatches, { type PastMatchRecord } from './components/PastMatches'
 import { ScoringSystem } from './components/scoringSystem'
 import './App.css'
+
+const PAST_MATCHES_STORAGE_KEY = 'badminton-scoreboard:past-matches'
+
+function loadPastMatches(): PastMatchRecord[] {
+  try {
+    const matches: unknown = JSON.parse(
+      window.localStorage.getItem(PAST_MATCHES_STORAGE_KEY) ?? '[]',
+    )
+    return Array.isArray(matches) ? (matches as PastMatchRecord[]) : []
+  } catch {
+    return []
+  }
+}
 
 interface AppProps {
   scoringSystem?: ScoringSystem
@@ -30,6 +44,8 @@ const scoringModes = [
 function App({ scoringSystem }: AppProps) {
   const [teamNames, setTeamNames] = useState({ home: 'Heim', guest: 'Gast' })
   const [discipline, setDiscipline] = useState('')
+  const [pastMatches, setPastMatches] = useState(loadPastMatches)
+  const [showPastMatches, setShowPastMatches] = useState(false)
   const [selectedScoringSystem, setSelectedScoringSystem] = useState(
     () => scoringSystem ?? ScoringSystem.bestOfThreeTo21,
   )
@@ -44,6 +60,14 @@ function App({ scoringSystem }: AppProps) {
   const selectedMode = scoringModes.find(
     (mode) => mode.scoringSystem === selectedScoringSystem,
   )?.value ?? 'custom'
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PAST_MATCHES_STORAGE_KEY, JSON.stringify(pastMatches))
+    } catch {
+      // Storage can be unavailable or full; completed matches remain visible in this session.
+    }
+  }, [pastMatches])
 
   useEffect(() => {
     if (!settingsOpen) {
@@ -94,12 +118,33 @@ function App({ scoringSystem }: AppProps) {
     }
   }
 
+  function archiveMatch(match: MatchCompletion) {
+    const record: PastMatchRecord = {
+      id: `${match.startedAt}`,
+      discipline,
+      homeName: teamNames.home || 'Heim',
+      guestName: teamNames.guest || 'Gast',
+      startedAt: match.startedAt,
+      endedAt: match.endedAt,
+      games: match.gameHistory.map((game) => ({
+        homeScore: game.scores[match.homeSide],
+        guestScore: game.scores[(1 - match.homeSide) as ScoreboardSide],
+      })),
+    }
+
+    setPastMatches((current) => [record, ...current.filter((item) => item.id !== record.id)])
+  }
+
   return (
     <Scoreboard
       key={scoreboardInstance}
       scoringSystem={selectedScoringSystem}
+      onMatchComplete={archiveMatch}
     >
       {(scoreboard) => (
+        showPastMatches ? (
+          <PastMatches matches={pastMatches} onBack={() => setShowPastMatches(false)} />
+        ) : (
     <main className="scoreboard">
       <button
         className="undo-button"
@@ -261,6 +306,17 @@ function App({ scoringSystem }: AppProps) {
             </div>
           )}
           <button
+            className="settings-history-button"
+            type="button"
+            onClick={() => {
+              setShowPastMatches(true)
+              setSettingsOpen(false)
+            }}
+          >
+            <History aria-hidden="true" />
+            Vergangene Matches
+          </button>
+          <button
             className="settings-reset-button"
             type="button"
             onClick={() => setResetConfirmationOpen(true)}
@@ -394,6 +450,7 @@ function App({ scoringSystem }: AppProps) {
         </div>
       )}
     </main>
+        )
       )}
     </Scoreboard>
   )

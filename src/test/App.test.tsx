@@ -252,6 +252,79 @@ describe('badminton scoreboard UI', () => {
     expect(screen.getByLabelText('Scores of completed games')).toHaveTextContent('5')
   })
 
+  it('archives match details and restores them after remounting the app', async () => {
+    const user = userEvent.setup()
+    window.localStorage.clear()
+    const app = render(<App />)
+
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    const settings = screen.getByRole('dialog', { name: 'Einstellungen' })
+    await user.clear(within(settings).getByRole('textbox', { name: 'Heim' }))
+    await user.type(within(settings).getByRole('textbox', { name: 'Heim' }), 'Home Team')
+    await user.clear(within(settings).getByRole('textbox', { name: 'Gast' }))
+    await user.type(within(settings).getByRole('textbox', { name: 'Gast' }), 'Guest Team')
+    await user.selectOptions(within(settings).getByRole('combobox', { name: 'Disziplin' }), 'MX')
+    await user.click(within(settings).getByRole('button', { name: 'Einstellungen schließen' }))
+
+    clickTile(0, 21)
+    fireEvent.click(screen.getByRole('button', { name: '2. Satz' }))
+    clickTile(1, 21)
+
+    expect(screen.queryByRole('button', { name: 'Vergangene Matches' })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    const historySettings = screen.getByRole('dialog', { name: 'Einstellungen' })
+    await user.click(within(historySettings).getByRole('button', { name: 'Vergangene Matches' }))
+    expect(screen.getByRole('heading', { name: 'Vergangene Matches' })).toBeInTheDocument()
+    const matchTitle = screen.getByRole('heading', { name: /Home Team\s+vs\s+Guest Team/ })
+    expect(matchTitle).toBeInTheDocument()
+    const disciplinePill = screen.getByText('MX')
+    expect(disciplinePill).toHaveClass('past-match__discipline')
+    expect(matchTitle.closest('.past-match__header')?.firstElementChild).toBe(disciplinePill)
+
+    const table = screen.getByRole('table')
+    expect(table).toHaveAttribute(
+      'aria-label',
+      'Spielstände je Team, Spiele in chronologischer Reihenfolge',
+    )
+    expect(within(table).queryAllByRole('columnheader')).toHaveLength(0)
+    expect(within(table).getAllByRole('row')).toHaveLength(2)
+    expect(within(table).getAllByRole('rowheader').map((header) => header.textContent)).toEqual([
+      'Home Team',
+      'Guest Team',
+    ])
+    expect(within(table).getAllByRole('row')[0]).toHaveClass('past-match__winner')
+    expect(within(table).getAllByRole('row')[1]).not.toHaveClass('past-match__winner')
+    expect(within(table).getAllByRole('cell').map((cell) => cell.textContent)).toEqual([
+      '21',
+      '21',
+      '0',
+      '0',
+    ])
+    const results = table.closest('.past-match__results')
+    expect(results).toHaveClass('past-match__results')
+    expect(results?.lastElementChild).toHaveClass('past-match__times')
+    expect(screen.getAllByRole('time')).toHaveLength(2)
+
+    app.unmount()
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    const reopenedSettings = screen.getByRole('dialog', { name: 'Einstellungen' })
+    await user.click(within(reopenedSettings).getByRole('button', { name: 'Vergangene Matches' }))
+    expect(screen.getByRole('heading', { name: /Home Team\s+vs\s+Guest Team/ })).toBeInTheDocument()
+  })
+
+  it('omits the discipline pill when a match has no discipline', () => {
+    window.localStorage.clear()
+    render(<App scoringSystem={firstToThreeScoringSystem} />)
+
+    clickTile(0, 3)
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Vergangene Matches' }))
+
+    expect(screen.getByRole('heading', { name: /Heim\s+vs\s+Gast/ })).toBeInTheDocument()
+    expect(document.querySelector('.past-match__discipline')).not.toBeInTheDocument()
+  })
+
   it('edits team labels and displays the selected discipline in settings', async () => {
     const user = userEvent.setup()
     render(<App />)
