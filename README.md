@@ -1,16 +1,71 @@
-# React + Vite
+# Badminton Scoreboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A simple, touch-friendly scoreboard for tracking badminton games and matches. The app supports multiple scoring formats, configurable team names and disciplines, undo, match history, and English or German UI. It follows the browser language by default; the language can also be changed from Settings.
 
-Currently, two official plugins are available:
+## Run Locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+Open the local URL printed by Vite.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## How to Use
 
-## Expanding the Oxlint configuration
+- Tap a team's side of the scoreboard to add a point.
+- Use **Undo** to reverse the latest scoring action.
+- When a game ends, choose the next game to continue the match. The match is saved to history when complete.
+- Use **Switch sides** before scoring if the teams need to change ends.
+- Use the fullscreen control for a larger court-side display.
+- Open **Settings** and choose **Past matches** to review completed results.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## Scoring Formats
+
+| Format | Games to win | Points to win a game | Point cap |
+| --- | ---: | ---: | ---: |
+| 3x21 | 2 of 3 | 21 | 30 |
+| 3x15 | 2 of 3 | 15 | 21 |
+| 5x11 | 3 of 5 | 11 | 15 |
+
+A game normally requires a two-point lead. The point cap ends the game even if the lead is smaller.
+
+## Settings
+
+The Settings menu lets you edit the Home and Guest team names, choose a badminton discipline, and select a scoring format. The flag buttons switch between German and English; that choice is saved for future visits. You can also open past matches or reset the current score and match history.
+
+Completed matches are stored in the browser's local storage on the current device.
+
+## Project Checks
+
+```bash
+npm test
+npm run typecheck
+npm run build
+```
+
+## Screenshots
+
+### Starting Scoreboard
+
+![Starting scoreboard at 0–0](docs/screenshots/scoreboard.png)
+
+### Game in Progress
+
+![Scoreboard during a game at 8–5](docs/screenshots/scoreboard-in-play.png)
+
+### Renamed Teams
+
+![Scoreboard with renamed Northside and Riverside teams](docs/screenshots/scoreboard-renamed-teams.png)
+
+### Settings
+
+![Settings with team names, discipline, scoring format, and language controls](docs/screenshots/settings.png)
+
+### Match Complete
+
+![Completed match with winner and game scores](docs/screenshots/match-complete.png)
+
+### Past Matches
+
+![Past matches with Northside and Riverside alongside the default Home and Guest teams](docs/screenshots/past-matches.png)
