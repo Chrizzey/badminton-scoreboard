@@ -4,6 +4,13 @@ import { ArrowLeftRight, History, Maximize, Minimize, Settings, Undo2, X } from 
 import Scoreboard, { type MatchCompletion, type ScoreboardSide } from './components/Scoreboard'
 import PastMatches, { type PastMatchRecord } from './components/PastMatches'
 import { ScoringSystem } from './components/scoringSystem'
+import {
+  getLocale,
+  getMessages,
+  saveLocale,
+  translateDiscipline,
+  type Locale,
+} from './i18n'
 import './App.css'
 
 const PAST_MATCHES_STORAGE_KEY = 'badminton-scoreboard:past-matches'
@@ -21,6 +28,7 @@ function loadPastMatches(): PastMatchRecord[] {
 
 interface AppProps {
   scoringSystem?: ScoringSystem
+  locale?: Locale
 }
 
 const scoringModes = [
@@ -41,8 +49,15 @@ const scoringModes = [
   },
 ] as const
 
-function App({ scoringSystem }: AppProps) {
-  const [teamNames, setTeamNames] = useState({ home: 'Heim', guest: 'Gast' })
+const disciplineCodes = ['HD1', 'HD2', 'DD', 'HE1', 'HE2', 'DE', 'HE3', 'MX'] as const
+
+function App({ scoringSystem, locale: localeOverride }: AppProps) {
+  const [locale, setLocale] = useState(() => localeOverride ?? getLocale())
+  const messages = getMessages(locale)
+  const [teamNames, setTeamNames] = useState<{ home: string; guest: string }>({
+    home: messages.home,
+    guest: messages.guest,
+  })
   const [discipline, setDiscipline] = useState('')
   const [pastMatches, setPastMatches] = useState(loadPastMatches)
   const [showPastMatches, setShowPastMatches] = useState(false)
@@ -60,6 +75,25 @@ function App({ scoringSystem }: AppProps) {
   const selectedMode = scoringModes.find(
     (mode) => mode.scoringSystem === selectedScoringSystem,
   )?.value ?? 'custom'
+
+  function changeLocale(nextLocale: Locale) {
+    if (nextLocale === locale) {
+      return
+    }
+
+    const nextMessages = getMessages(nextLocale)
+    setTeamNames((current) => ({
+      home: current.home === messages.home ? nextMessages.home : current.home,
+      guest: current.guest === messages.guest ? nextMessages.guest : current.guest,
+    }))
+    setLocale(nextLocale)
+    saveLocale(nextLocale)
+  }
+
+  useEffect(() => {
+    document.documentElement.lang = locale
+    document.title = messages.appTitle
+  }, [locale, messages.appTitle])
 
   useEffect(() => {
     try {
@@ -122,8 +156,8 @@ function App({ scoringSystem }: AppProps) {
     const record: PastMatchRecord = {
       id: `${match.startedAt}`,
       discipline,
-      homeName: teamNames.home || 'Heim',
-      guestName: teamNames.guest || 'Gast',
+      homeName: teamNames.home || messages.home,
+      guestName: teamNames.guest || messages.guest,
       startedAt: match.startedAt,
       endedAt: match.endedAt,
       games: match.gameHistory.map((game) => ({
@@ -143,14 +177,19 @@ function App({ scoringSystem }: AppProps) {
     >
       {(scoreboard) => (
         showPastMatches ? (
-          <PastMatches matches={pastMatches} onBack={() => setShowPastMatches(false)} />
+          <PastMatches
+            locale={locale}
+            messages={messages}
+            matches={pastMatches}
+            onBack={() => setShowPastMatches(false)}
+          />
         ) : (
     <main className="scoreboard">
       <button
         className="undo-button"
         type="button"
-        aria-label="Undo last action"
-        title="Undo last action"
+        aria-label={messages.undo}
+        title={messages.undo}
         disabled={!scoreboard.canUndo}
         onClick={scoreboard.undoLastAction}
       >
@@ -160,8 +199,8 @@ function App({ scoringSystem }: AppProps) {
         ref={settingsButtonRef}
         className="settings-button"
         type="button"
-        aria-label="Settings"
-        title="Settings"
+        aria-label={messages.settings}
+        title={messages.settings}
         aria-haspopup="dialog"
         aria-expanded={settingsOpen}
         onClick={() => setSettingsOpen((open) => !open)}
@@ -171,8 +210,8 @@ function App({ scoringSystem }: AppProps) {
       <button
         className="fullscreen-button"
         type="button"
-        aria-label={isFullscreen ? 'Vollbild verlassen' : 'Vollbild aktivieren'}
-        title={isFullscreen ? 'Vollbild verlassen' : 'Vollbild aktivieren'}
+        aria-label={isFullscreen ? messages.exitFullscreen : messages.enterFullscreen}
+        title={isFullscreen ? messages.exitFullscreen : messages.enterFullscreen}
         aria-pressed={isFullscreen}
         onClick={toggleFullscreen}
       >
@@ -188,18 +227,40 @@ function App({ scoringSystem }: AppProps) {
             aria-labelledby="settings-title"
           >
           <header className="settings-panel__header">
-            <h2 id="settings-title">Einstellungen</h2>
+            <h2 id="settings-title">{messages.settings}</h2>
+            <div className="language-switch" role="group" aria-label={messages.language}>
+              <button
+                className={`language-switch__button ${locale === 'en' ? 'language-switch__button--active' : ''}`}
+                type="button"
+                aria-label={messages.switchToEnglish}
+                aria-pressed={locale === 'en'}
+                title={messages.switchToEnglish}
+                onClick={() => changeLocale('en')}
+              >
+                <span aria-hidden="true">🇬🇧</span>
+              </button>
+              <button
+                className={`language-switch__button ${locale === 'de' ? 'language-switch__button--active' : ''}`}
+                type="button"
+                aria-label={messages.switchToGerman}
+                aria-pressed={locale === 'de'}
+                title={messages.switchToGerman}
+                onClick={() => changeLocale('de')}
+              >
+                <span aria-hidden="true">🇩🇪</span>
+              </button>
+            </div>
             <button
               className="settings-panel__close"
               type="button"
-              aria-label="Einstellungen schließen"
+              aria-label={messages.closeSettings}
               onClick={() => setSettingsOpen(false)}
             >
               <X aria-hidden="true" />
             </button>
           </header>
           <label className="settings-field">
-            <span>Heim</span>
+            <span>{messages.home}</span>
             <input
               type="text"
               value={teamNames.home}
@@ -210,7 +271,7 @@ function App({ scoringSystem }: AppProps) {
             />
           </label>
           <label className="settings-field">
-            <span>Gast</span>
+            <span>{messages.guest}</span>
             <input
               type="text"
               value={teamNames.guest}
@@ -221,24 +282,21 @@ function App({ scoringSystem }: AppProps) {
             />
           </label>
           <label className="settings-field">
-            <span>Disziplin</span>
+            <span>{messages.discipline}</span>
             <select
               value={discipline}
               onChange={(event) => setDiscipline(event.target.value)}
             >
-              <option value="">Keine</option>
-              <option value="HD1">HD1</option>
-              <option value="HD2">HD2</option>
-              <option value="DD">DD</option>
-              <option value="HE1">HE1</option>
-              <option value="HE2">HE2</option>
-              <option value="DE">DE</option>
-              <option value="HE3">HE3</option>
-              <option value="MX">MX</option>
+              <option value="">{messages.noDiscipline}</option>
+              {disciplineCodes.map((code) => (
+                <option key={code} value={code}>
+                  {translateDiscipline(code, locale)}
+                </option>
+              ))}
             </select>
           </label>
           <label className="settings-field">
-            <span>Spielmodus</span>
+            <span>{messages.gameMode}</span>
             <select
               value={selectedMode}
               onChange={(event) => {
@@ -266,7 +324,7 @@ function App({ scoringSystem }: AppProps) {
               }}
             >
               {selectedMode === 'custom' && (
-                <option value="custom">Benutzerdefiniert</option>
+                <option value="custom">{messages.customMode}</option>
               )}
               {scoringModes.map((mode) => (
                 <option key={mode.value} value={mode.value}>
@@ -276,8 +334,8 @@ function App({ scoringSystem }: AppProps) {
             </select>
           </label>
           {modeSwitchConfirmationOpen && pendingScoringSystem && (
-            <div className="reset-confirmation" role="group" aria-label="Moduswechsel bestätigen">
-              <p>Ein Moduswechsel setzt Spielstand und Historie zurück. Fortfahren?</p>
+            <div className="reset-confirmation" role="group" aria-label={messages.confirmModeSwitch}>
+              <p>{messages.modeSwitchWarning}</p>
               <div className="reset-confirmation__actions">
                 <button
                   className="reset-confirmation__cancel"
@@ -287,7 +345,7 @@ function App({ scoringSystem }: AppProps) {
                     setModeSwitchConfirmationOpen(false)
                   }}
                 >
-                  Abbrechen
+                  {messages.cancel}
                 </button>
                 <button
                   className="reset-confirmation__confirm"
@@ -300,7 +358,7 @@ function App({ scoringSystem }: AppProps) {
                     setSettingsOpen(false)
                   }}
                 >
-                  Modus wechseln
+                  {messages.changeMode}
                 </button>
               </div>
             </div>
@@ -314,25 +372,25 @@ function App({ scoringSystem }: AppProps) {
             }}
           >
             <History aria-hidden="true" />
-            Vergangene Matches
+            {messages.pastMatches}
           </button>
           <button
             className="settings-reset-button"
             type="button"
             onClick={() => setResetConfirmationOpen(true)}
           >
-            Spielstand und Historie zurücksetzen
+            {messages.resetScoreAndHistory}
           </button>
           {resetConfirmationOpen && (
-            <div className="reset-confirmation" role="group" aria-label="Reset bestätigen">
-              <p>Spielstand und gesamte Historie wirklich zurücksetzen?</p>
+            <div className="reset-confirmation" role="group" aria-label={messages.confirmReset}>
+              <p>{messages.resetWarning}</p>
               <div className="reset-confirmation__actions">
                 <button
                   className="reset-confirmation__cancel"
                   type="button"
                   onClick={() => setResetConfirmationOpen(false)}
                 >
-                  Abbrechen
+                  {messages.cancel}
                 </button>
                 <button
                   className="reset-confirmation__confirm"
@@ -343,7 +401,7 @@ function App({ scoringSystem }: AppProps) {
                     setSettingsOpen(false)
                   }}
                 >
-                  Zurücksetzen
+                  {messages.reset}
                 </button>
               </div>
             </div>
@@ -357,7 +415,12 @@ function App({ scoringSystem }: AppProps) {
           className={`score-tile ${side === 0 ? 'score-tile--blue' : 'score-tile--red'}`}
           type="button"
           key={side}
-          aria-label={`${side === scoreboard.homeSide ? teamNames.home || 'Heim' : teamNames.guest || 'Gast'} score: ${score}`}
+          aria-label={messages.scoreLabel(
+            side === scoreboard.homeSide
+              ? teamNames.home || messages.home
+              : teamNames.guest || messages.guest,
+            score,
+          )}
           disabled={scoreboard.gameOver}
           onClick={() => {
             if (settingsOpen) {
@@ -370,16 +433,18 @@ function App({ scoringSystem }: AppProps) {
           <span className="score-tile__value">{score}</span>
           <span className="score-tile__label">
             {side === scoreboard.homeSide
-              ? teamNames.home || 'Heim'
-              : teamNames.guest || 'Gast'}
+              ? teamNames.home || messages.home
+              : teamNames.guest || messages.guest}
           </span>
         </button>
       ))}
       <aside className="match-summary">
-        {discipline && <div className="match-discipline">{discipline}</div>}
+        {discipline && (
+          <div className="match-discipline">{translateDiscipline(discipline, locale)}</div>
+        )}
         <div
           className="games-indicator"
-          aria-label={`Games: left ${scoreboard.games[0]}, right ${scoreboard.games[1]}`}
+          aria-label={messages.gamesIndicator(scoreboard.games[0], scoreboard.games[1])}
         >
           <span className="games-indicator__score games-indicator__score--blue">
             {scoreboard.games[0]}
@@ -393,15 +458,15 @@ function App({ scoringSystem }: AppProps) {
           <button
             className="side-switch-button"
             type="button"
-            aria-label="Heim und Gast tauschen"
-            title="Heim und Gast tauschen"
+            aria-label={messages.switchSides}
+            title={messages.switchSides}
             onClick={scoreboard.switchSides}
           >
             <ArrowLeftRight aria-hidden="true" />
           </button>
         )}
         {scoreboard.gameHistory.length > 0 && (
-          <ol className="past-games" aria-label="Scores of completed games">
+          <ol className="past-games" aria-label={messages.completedGameScores}>
             {scoreboard.gameHistory.map((game, index) => (
               <li className="past-games__item" key={index}>
                 <span className="past-games__number">{index + 1}</span>
@@ -424,18 +489,18 @@ function App({ scoringSystem }: AppProps) {
           {scoreboard.matchOver ? (
             <div className="match-over-content">
               <div className="match-over-message" role="status">
-                Match gewonnen: {scoreboard.homeSide === scoreboard.games.findIndex(
+                {messages.matchWon(scoreboard.homeSide === scoreboard.games.findIndex(
                   (gamesWon) => gamesWon >= scoreboard.gamesToWin,
                 )
-                  ? teamNames.home || 'Heim'
-                  : teamNames.guest || 'Gast'}
+                  ? teamNames.home || messages.home
+                  : teamNames.guest || messages.guest)}
               </div>
               <button
                 className="next-game-button"
                 type="button"
                 onClick={scoreboard.startNewMatch}
               >
-                Neues Match
+                {messages.newMatch}
               </button>
             </div>
           ) : (
@@ -444,7 +509,7 @@ function App({ scoringSystem }: AppProps) {
               type="button"
               onClick={scoreboard.startNextGame}
             >
-              {scoreboard.gameHistory.length + 1}. Satz
+              {messages.nextGame(scoreboard.gameHistory.length + 1)}
             </button>
           )}
         </div>

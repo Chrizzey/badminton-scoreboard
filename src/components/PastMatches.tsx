@@ -1,4 +1,5 @@
 import { ArrowLeft } from 'lucide-react'
+import { translateDiscipline, type Locale, type Messages } from '../i18n'
 
 export interface PastMatchRecord {
   id: string
@@ -16,35 +17,35 @@ export interface PastMatchRecord {
 interface PastMatchesProps {
   matches: PastMatchRecord[]
   onBack: () => void
+  locale: Locale
+  messages: Messages
 }
 
-const dateTimeFormatter = new Intl.DateTimeFormat('de-DE', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-})
-
-function formatDateTime(timestamp: number): string {
-  return dateTimeFormatter.format(new Date(timestamp))
+function formatDateTime(timestamp: number, locale: Locale): string {
+  return new Intl.DateTimeFormat(locale, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(timestamp))
 }
 
-export default function PastMatches({ matches, onBack }: PastMatchesProps) {
+export default function PastMatches({ matches, onBack, locale, messages }: PastMatchesProps) {
   return (
     <main className="past-matches-page">
       <header className="past-matches-page__header">
         <button
           className="past-matches-page__back"
           type="button"
-          aria-label="Zurück zum Spielstand"
+          aria-label={messages.historyBack}
           onClick={onBack}
         >
           <ArrowLeft aria-hidden="true" />
-          <span>Spielstand</span>
+          <span>{messages.historyBackLabel}</span>
         </button>
-        <h1>Vergangene Matches</h1>
+        <h1>{messages.historyTitle}</h1>
       </header>
       <div className="past-matches-list">
         {matches.length === 0 ? (
-          <p className="past-matches-empty">Noch keine abgeschlossenen Matches</p>
+          <p className="past-matches-empty">{messages.historyEmpty}</p>
         ) : (
           matches.map((match) => {
             const homeWins = match.games.filter((game) => game.homeScore > game.guestScore).length
@@ -54,17 +55,19 @@ export default function PastMatches({ matches, onBack }: PastMatchesProps) {
               <article className="past-match" key={match.id}>
                 <header className="past-match__header">
                   {match.discipline && match.discipline !== 'Keine' && (
-                    <span className="past-match__discipline">{match.discipline}</span>
+                    <span className="past-match__discipline">
+                      {translateDiscipline(match.discipline, locale)}
+                    </span>
                   )}
                   <div className="past-match__title">
                     <h2>
-                      {match.homeName} <span>vs</span> {match.guestName}
+                      {match.homeName} <span>{messages.versus}</span> {match.guestName}
                     </h2>
                   </div>
                 </header>
                 <div className="past-match__results">
                   <div className="past-match__scores">
-                    <table aria-label="Spielstände je Team, Spiele in chronologischer Reihenfolge">
+                    <table aria-label={messages.historyTableLabel}>
                       <tbody>
                         <tr className={homeWins > guestWins ? 'past-match__winner' : undefined}>
                           <th scope="row">{match.homeName}</th>
@@ -83,18 +86,18 @@ export default function PastMatches({ matches, onBack }: PastMatchesProps) {
                   </div>
                   <dl className="past-match__times">
                     <div>
-                      <dt>Beginn</dt>
+                      <dt>{messages.startTime}</dt>
                       <dd>
                         <time dateTime={new Date(match.startedAt).toISOString()}>
-                          {formatDateTime(match.startedAt)}
+                          {formatDateTime(match.startedAt, locale)}
                         </time>
                       </dd>
                     </div>
                     <div>
-                      <dt>Ende</dt>
+                      <dt>{messages.endTime}</dt>
                       <dd>
                         <time dateTime={new Date(match.endedAt).toISOString()}>
-                          {formatDateTime(match.endedAt)}
+                          {formatDateTime(match.endedAt, locale)}
                         </time>
                       </dd>
                     </div>

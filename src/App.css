@@ -232,6 +232,36 @@
   line-height: 1.2;
 }
 
+.language-switch {
+  display: flex;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.language-switch__button {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: 1px solid #cbd2dc;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.language-switch__button:hover {
+  background: #edf0f4;
+}
+
+.language-switch__button--active {
+  border-color: #1769e8;
+  background: #eaf1ff;
+  box-shadow: inset 0 0 0 1px #1769e8;
+}
+
 .settings-panel__close {
   display: grid;
   place-items: center;
@@ -277,6 +307,7 @@
 
 .settings-field input:focus-visible,
 .settings-field select:focus-visible,
+.language-switch__button:focus-visible,
 .settings-panel__close:focus-visible {
   outline: 2px solid #1769e8;
   outline-offset: 2px;

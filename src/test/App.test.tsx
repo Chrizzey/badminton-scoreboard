@@ -1,9 +1,15 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../App'
 import Scoreboard, { type ScoreboardModel } from '../components/Scoreboard'
 import { ScoringSystem } from '../components/scoringSystem'
+import {
+  getMessages,
+  LOCALE_STORAGE_KEY,
+  resolveLocale,
+  translateDiscipline,
+} from '../i18n'
 
 const firstToThreeScoringSystem = new ScoringSystem({
   pointsToWin: 3,
@@ -13,7 +19,7 @@ const firstToThreeScoringSystem = new ScoringSystem({
 })
 
 function scoreTiles(): HTMLButtonElement[] {
-  return screen.getAllByRole('button', { name: /score: \d+$/ }) as HTMLButtonElement[]
+  return [...document.querySelectorAll<HTMLButtonElement>('.score-tile')]
 }
 
 function points(): string[] {
@@ -38,6 +44,115 @@ function clickTile(index: number, count = 1): void {
 function winGame(index: number, pointsToWin = 21): void {
   clickTile(index, pointsToWin)
 }
+
+function settingsButton(): HTMLElement {
+  return screen.getByRole('button', {
+    name: document.documentElement.lang === 'de' ? 'Einstellungen' : 'Settings',
+  })
+}
+
+function undoButton(): HTMLElement {
+  return screen.getByRole('button', {
+    name: document.documentElement.lang === 'de'
+      ? 'Letzte Aktion rückgängig machen'
+      : 'Undo last action',
+  })
+}
+
+beforeEach(() => {
+  window.localStorage.removeItem(LOCALE_STORAGE_KEY)
+  Object.defineProperty(window.navigator, 'language', {
+    configurable: true,
+    value: 'de-DE',
+  })
+})
+
+describe('locale selection', () => {
+  it.each(['de', 'de-DE', 'de-AT'])('selects German for %s', (language) => {
+    expect(resolveLocale(language)).toBe('de')
+  })
+
+  it.each(['en-US', 'fr-FR', undefined, ''])('selects English for %s', (language) => {
+    expect(resolveLocale(language)).toBe('en')
+  })
+
+  it.each([
+    ['HD1', 'MD1'],
+    ['HD2', 'MD2'],
+    ['HE1', 'MS1'],
+    ['HE2', 'MS2'],
+    ['HE3', 'MS3'],
+    ['DD', 'WD'],
+    ['DE', 'WS'],
+    ['MX', 'XD'],
+  ])('translates %s to %s in English and preserves its German label', (code, label) => {
+    expect(translateDiscipline(code, 'en')).toBe(label)
+    expect(translateDiscipline(code, 'de')).toBe(code)
+  })
+
+  it('renders the app in English when selected', () => {
+    render(<App locale="en" />)
+
+    expect(document.documentElement).toHaveAttribute('lang', 'en')
+    expect(document.title).toBe(getMessages('en').appTitle)
+    expect(screen.getByRole('button', { name: 'Home score: 0' })).toHaveTextContent('Home')
+    expect(screen.getByText('Guest')).toBeInTheDocument()
+    expect(undoButton()).toBeDisabled()
+
+    fireEvent.click(settingsButton())
+    expect(screen.getByRole('dialog', { name: 'Settings' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Past matches' }))
+
+    expect(screen.getByRole('heading', { name: 'Past matches' })).toBeInTheDocument()
+    expect(screen.getByText('No completed matches yet')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Back to scoreboard' })).toHaveTextContent('Scoreboard')
+  })
+
+  it('switches languages from settings and persists the selection', async () => {
+    const user = userEvent.setup()
+    const app = render(<App locale="de" />)
+
+    await user.click(settingsButton())
+    await user.click(screen.getByRole('button', { name: 'Zu Englisch wechseln' }))
+
+    expect(document.documentElement).toHaveAttribute('lang', 'en')
+    expect(document.title).toBe(getMessages('en').appTitle)
+    expect(screen.getByRole('button', { name: 'Home score: 0' })).toHaveTextContent('Home')
+    expect(screen.getByRole('button', { name: 'Switch to German' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
+    expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('en')
+
+    await user.click(screen.getByRole('button', { name: 'Switch to German' }))
+    expect(document.documentElement).toHaveAttribute('lang', 'de')
+    expect(screen.getByRole('button', { name: 'Heim: 0' })).toHaveTextContent('Heim')
+    expect(window.localStorage.getItem(LOCALE_STORAGE_KEY)).toBe('de')
+
+    app.unmount()
+    render(<App />)
+    expect(document.documentElement).toHaveAttribute('lang', 'de')
+  })
+
+  it('displays translated discipline labels without changing stored codes', async () => {
+    const user = userEvent.setup()
+    render(<App locale="en" scoringSystem={firstToThreeScoringSystem} />)
+
+    await user.click(settingsButton())
+    const disciplineSelect = screen.getByRole('combobox', { name: 'Discipline' })
+    expect(within(disciplineSelect).getByRole('option', { name: 'MD1' })).toHaveValue('HD1')
+    await user.selectOptions(disciplineSelect, 'HD1')
+    expect(disciplineSelect).toHaveValue('HD1')
+    expect(document.querySelector('.match-discipline')).toHaveTextContent('MD1')
+    await user.click(screen.getByRole('button', { name: 'Close settings' }))
+
+    clickTile(0, 3)
+    await user.click(settingsButton())
+    await user.click(screen.getByRole('button', { name: 'Past matches' }))
+
+    expect(screen.getByText('MD1')).toHaveClass('past-match__discipline')
+  })
+})
 
 describe('badminton scoreboard UI', () => {
   it('provides the configured best-of-three to 15 and best-of-five to 11 systems', () => {
@@ -137,7 +252,7 @@ describe('badminton scoreboard UI', () => {
     expect(points()).toEqual(['0', '0'])
     expect(screen.getByText('Heim')).toBeInTheDocument()
     expect(screen.getByText('Gast')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Undo last action' })).toBeDisabled()
+    expect(undoButton()).toBeDisabled()
   })
 
   it('increments only the clicked side and undoes the last point', async () => {
@@ -148,7 +263,7 @@ describe('badminton scoreboard UI', () => {
     await user.click(scoreTiles()[1])
     expect(points()).toEqual(['1', '1'])
 
-    await user.click(screen.getByRole('button', { name: 'Undo last action' }))
+    await user.click(undoButton())
     expect(points()).toEqual(['1', '0'])
   })
 
@@ -184,14 +299,14 @@ describe('badminton scoreboard UI', () => {
 
     winGame(0)
     expect(matchScore()).toEqual(['1', '0'])
-    expect(screen.getByLabelText('Scores of completed games')).toHaveTextContent('1')
+    expect(screen.getByLabelText('Ergebnisse abgeschlossener Spiele')).toHaveTextContent('1')
 
     fireEvent.click(screen.getByRole('button', { name: '2. Satz' }))
     expect(points()).toEqual(['0', '0'])
-    expect(scoreTiles()[0]).toHaveAttribute('aria-label', 'Gast score: 0')
-    expect(scoreTiles()[1]).toHaveAttribute('aria-label', 'Heim score: 0')
+    expect(scoreTiles()[0]).toHaveAttribute('aria-label', 'Gast: 0')
+    expect(scoreTiles()[1]).toHaveAttribute('aria-label', 'Heim: 0')
     expect(screen.queryByRole('button', { name: '3. Satz' })).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Scores of completed games')).toHaveTextContent('1')
+    expect(screen.getByLabelText('Ergebnisse abgeschlossener Spiele')).toHaveTextContent('1')
   })
 
   it('automatically switches ends at 11 in the third set and can undo that switch', () => {
@@ -206,12 +321,12 @@ describe('badminton scoreboard UI', () => {
     expect(points()).toEqual(['10', '0'])
     clickTile(0)
     expect(points()).toEqual(['0', '11'])
-    expect(scoreTiles()[0]).toHaveAttribute('aria-label', 'Gast score: 0')
-    expect(scoreTiles()[1]).toHaveAttribute('aria-label', 'Heim score: 11')
+    expect(scoreTiles()[0]).toHaveAttribute('aria-label', 'Gast: 0')
+    expect(scoreTiles()[1]).toHaveAttribute('aria-label', 'Heim: 11')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Undo last action' }))
+    fireEvent.click(undoButton())
     expect(points()).toEqual(['10', '0'])
-    expect(scoreTiles()[0]).toHaveAttribute('aria-label', 'Heim score: 10')
+    expect(scoreTiles()[0]).toHaveAttribute('aria-label', 'Heim: 10')
   })
 
   it('ends the match after two sets, and starts a fresh match with undo support', () => {
@@ -229,9 +344,9 @@ describe('badminton scoreboard UI', () => {
     expect(points()).toEqual(['0', '0'])
     expect(matchScore()).toEqual(['0', '0'])
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Scores of completed games')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Ergebnisse abgeschlossener Spiele')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Undo last action' }))
+    fireEvent.click(undoButton())
     expect(matchScore()).toEqual(['0', '2'])
     expect(screen.getByRole('status')).toHaveTextContent('Match gewonnen: Heim')
   })
@@ -248,8 +363,8 @@ describe('badminton scoreboard UI', () => {
     clickTile(1, 5)
 
     expect(screen.getByRole('status')).toBeInTheDocument()
-    expect(screen.getByLabelText('Scores of completed games').children).toHaveLength(5)
-    expect(screen.getByLabelText('Scores of completed games')).toHaveTextContent('5')
+    expect(screen.getByLabelText('Ergebnisse abgeschlossener Spiele').children).toHaveLength(5)
+    expect(screen.getByLabelText('Ergebnisse abgeschlossener Spiele')).toHaveTextContent('5')
   })
 
   it('archives match details and restores them after remounting the app', async () => {
@@ -257,7 +372,7 @@ describe('badminton scoreboard UI', () => {
     window.localStorage.clear()
     const app = render(<App />)
 
-    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await user.click(settingsButton())
     const settings = screen.getByRole('dialog', { name: 'Einstellungen' })
     await user.clear(within(settings).getByRole('textbox', { name: 'Heim' }))
     await user.type(within(settings).getByRole('textbox', { name: 'Heim' }), 'Home Team')
@@ -271,11 +386,11 @@ describe('badminton scoreboard UI', () => {
     clickTile(1, 21)
 
     expect(screen.queryByRole('button', { name: 'Vergangene Matches' })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await user.click(settingsButton())
     const historySettings = screen.getByRole('dialog', { name: 'Einstellungen' })
     await user.click(within(historySettings).getByRole('button', { name: 'Vergangene Matches' }))
     expect(screen.getByRole('heading', { name: 'Vergangene Matches' })).toBeInTheDocument()
-    const matchTitle = screen.getByRole('heading', { name: /Home Team\s+vs\s+Guest Team/ })
+    const matchTitle = screen.getByRole('heading', { name: /Home Team\s+gegen\s+Guest Team/ })
     expect(matchTitle).toBeInTheDocument()
     const disciplinePill = screen.getByText('MX')
     expect(disciplinePill).toHaveClass('past-match__discipline')
@@ -307,10 +422,10 @@ describe('badminton scoreboard UI', () => {
 
     app.unmount()
     render(<App />)
-    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await user.click(settingsButton())
     const reopenedSettings = screen.getByRole('dialog', { name: 'Einstellungen' })
     await user.click(within(reopenedSettings).getByRole('button', { name: 'Vergangene Matches' }))
-    expect(screen.getByRole('heading', { name: /Home Team\s+vs\s+Guest Team/ })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Home Team\s+gegen\s+Guest Team/ })).toBeInTheDocument()
   })
 
   it('omits the discipline pill when a match has no discipline', () => {
@@ -318,10 +433,10 @@ describe('badminton scoreboard UI', () => {
     render(<App scoringSystem={firstToThreeScoringSystem} />)
 
     clickTile(0, 3)
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    fireEvent.click(settingsButton())
     fireEvent.click(screen.getByRole('button', { name: 'Vergangene Matches' }))
 
-    expect(screen.getByRole('heading', { name: /Heim\s+vs\s+Gast/ })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /Heim\s+gegen\s+Gast/ })).toBeInTheDocument()
     expect(document.querySelector('.past-match__discipline')).not.toBeInTheDocument()
   })
 
@@ -329,7 +444,7 @@ describe('badminton scoreboard UI', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await user.click(settingsButton())
     const dialog = screen.getByRole('dialog', { name: 'Einstellungen' })
     await user.clear(within(dialog).getByRole('textbox', { name: 'Heim' }))
     await user.type(within(dialog).getByRole('textbox', { name: 'Heim' }), 'Team A')
@@ -346,7 +461,7 @@ describe('badminton scoreboard UI', () => {
     const user = userEvent.setup()
     render(<App />)
 
-    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await user.click(settingsButton())
     const dialog = screen.getByRole('dialog', { name: 'Einstellungen' })
     const scoringMode = within(dialog).getByRole('combobox', { name: 'Spielmodus' })
     await user.selectOptions(scoringMode, 'bestOfThreeTo15')
@@ -364,7 +479,7 @@ describe('badminton scoreboard UI', () => {
     render(<App />)
     clickTile(0)
 
-    await user.click(screen.getByRole('button', { name: 'Settings' }))
+    await user.click(settingsButton())
     const dialog = screen.getByRole('dialog', { name: 'Einstellungen' })
     const scoringMode = within(dialog).getByRole('combobox', { name: 'Spielmodus' })
     await user.selectOptions(scoringMode, 'bestOfThreeTo15')
@@ -385,7 +500,7 @@ describe('badminton scoreboard UI', () => {
   it('does not score on the outside click that closes settings', () => {
     render(<App />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    fireEvent.click(settingsButton())
     fireEvent.click(scoreTiles()[0])
 
     expect(points()).toEqual(['0', '0'])
@@ -395,7 +510,7 @@ describe('badminton scoreboard UI', () => {
   it('keeps settings open when cancelling the reset confirmation', () => {
     render(<App />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    fireEvent.click(settingsButton())
     fireEvent.click(screen.getByRole('button', { name: 'Spielstand und Historie zurücksetzen' }))
     fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }))
 
@@ -482,7 +597,7 @@ describe('badminton scoreboard UI', () => {
     render(<App />)
 
     clickTile(0)
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
+    fireEvent.click(settingsButton())
     fireEvent.click(screen.getByRole('button', { name: 'Spielstand und Historie zurücksetzen' }))
 
     expect(points()).toEqual(['1', '0'])
@@ -495,10 +610,10 @@ describe('badminton scoreboard UI', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Zurücksetzen$/ }))
     expect(points()).toEqual(['0', '0'])
     expect(matchScore()).toEqual(['0', '0'])
-    expect(screen.queryByLabelText('Scores of completed games')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Ergebnisse abgeschlossener Spiele')).not.toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Undo last action' }))
+    fireEvent.click(undoButton())
     expect(points()).toEqual(['1', '0'])
   })
 })

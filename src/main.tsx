@@ -2,6 +2,12 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
+import { getLocale, getMessages } from './i18n'
+
+const locale = getLocale()
+const messages = getMessages(locale)
+document.documentElement.lang = locale
+document.title = messages.appTitle
 
 const rootElement = document.getElementById('root')
 
@@ -11,6 +17,6 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <App />
+    <App locale={locale} />
   </StrictMode>,
 )
