@@ -2,6 +2,8 @@
 
 A simple, touch-friendly scoreboard for tracking badminton games and matches. The app supports multiple scoring formats, configurable team names and disciplines, undo, match history, and English or German UI. It follows the browser language by default; the language can also be changed from Settings.
 
+Use the app hosted on my [GitHub Page](https://chrizzey.github.io/badminton-scoreboard/).
+
 ## Run Locally
 
 ```bash
