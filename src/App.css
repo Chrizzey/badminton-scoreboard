@@ -533,6 +533,54 @@
   text-align: center;
 }
 
+.past-matches-add-button,
+.manual-match-form__close,
+.manual-match-game__remove,
+.past-match__edit,
+.past-match__delete {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 1px solid #cbd2dc;
+  border-radius: 3px;
+  color: #17202b;
+  background: #fff;
+  cursor: pointer;
+}
+
+.past-matches-add-button {
+  grid-column: 3;
+  justify-self: end;
+}
+
+.past-matches-add-button svg,
+.manual-match-form__close svg,
+.manual-match-game__remove svg,
+.past-match__edit svg,
+.past-match__delete svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.past-matches-add-button:hover,
+.manual-match-form__close:hover,
+.manual-match-game__remove:hover,
+.past-match__edit:hover {
+  background: #edf0f4;
+}
+
+.past-match__delete {
+  flex: 0 0 auto;
+  color: #a5232b;
+}
+
+.past-match__delete:hover {
+  border-color: #c13b42;
+  background: #fff3f3;
+}
+
 .past-matches-page__back {
   display: inline-flex;
   align-items: center;
@@ -583,6 +631,169 @@
   text-align: center;
 }
 
+.manual-match-form {
+  display: grid;
+  gap: 1rem;
+  width: min(64rem, 100%);
+  margin: 0 auto;
+  padding: 1rem 1.25rem;
+  border: 1px solid #cbd2dc;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.manual-match-form__header,
+.manual-match-form__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.manual-match-form__header h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.manual-match-form__teams,
+.manual-match-form__times {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
+  gap: 0.75rem;
+}
+
+.manual-match-field {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  color: #394454;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.manual-match-field input,
+.manual-match-field select {
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid #aab3c0;
+  border-radius: 3px;
+  color: #17202b;
+  background: #fff;
+  font: inherit;
+  font-size: 1rem;
+}
+
+.manual-match-field input:focus-visible,
+.manual-match-field select:focus-visible,
+.past-matches-add-button:focus-visible,
+.manual-match-form__close:focus-visible,
+.manual-match-game__remove:focus-visible,
+.past-match__delete:focus-visible {
+  outline: 2px solid #1769e8;
+  outline-offset: 2px;
+}
+
+.manual-match-games {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+  gap: 0.65rem;
+}
+
+.manual-match-game {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 0.6rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.65rem;
+  border: 1px solid #dfe3e8;
+  border-radius: 4px;
+}
+
+.manual-match-game legend {
+  padding-inline: 0.25rem;
+  color: #394454;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.manual-match-form__add-game,
+.manual-match-form__actions button,
+.past-match__delete-confirmation button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid #aab3c0;
+  border-radius: 3px;
+  color: #17202b;
+  background: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.manual-match-form__add-game {
+  justify-self: start;
+}
+
+.manual-match-form__add-game svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.manual-match-form__actions {
+  justify-content: end;
+}
+
+.manual-match-form__actions .manual-match-form__save {
+  border-color: #1769e8;
+  color: #fff;
+  background: #1769e8;
+}
+
+.manual-match-form__error {
+  margin: 0;
+  color: #a5232b;
+  font-weight: 600;
+}
+
+.past-match__delete-confirmation {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0 0 1rem;
+  padding: 0.65rem;
+  border: 1px solid #edc3c5;
+  border-radius: 4px;
+  background: #fff8f8;
+}
+
+.past-match__delete-confirmation p {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+.past-match__delete-confirmation button:first-of-type {
+  border-color: #c13b42;
+  color: #a5232b;
+}
+
+.manual-match-form__add-game:hover,
+.manual-match-form__actions button:hover,
+.past-match__delete-confirmation button:hover {
+  background: #edf0f4;
+}
+
+.manual-match-form__actions .manual-match-form__save:hover {
+  background: #0e56c5;
+}
+
 .past-match {
   max-width: 64rem;
   margin: 0 auto;
@@ -596,7 +807,7 @@
 .past-match__header {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: space-between;
   flex-wrap: wrap;
   gap: 0.75rem;
   margin-bottom: 1rem;
@@ -610,6 +821,14 @@
 .past-match__header h2 span {
   color: #697586;
   font-weight: 400;
+}
+
+.past-match__actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: auto;
 }
 
 .past-match__discipline {
@@ -627,6 +846,7 @@
 }
 
 .past-match__title {
+  flex: 1 1 auto;
   min-width: 0;
 }
 

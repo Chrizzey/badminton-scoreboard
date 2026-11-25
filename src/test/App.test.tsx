@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../App'
+import PastMatches from '../components/PastMatches'
 import Scoreboard, { type ScoreboardModel } from '../components/Scoreboard'
 import { ScoringSystem } from '../components/scoringSystem'
 import {
@@ -151,6 +152,114 @@ describe('locale selection', () => {
     await user.click(screen.getByRole('button', { name: 'Past matches' }))
 
     expect(screen.getByText('MD1')).toHaveClass('past-match__discipline')
+  })
+
+  it('resets manual form inputs when reopening an edit or a new entry', () => {
+    const messages = getMessages('en')
+    const match = {
+      id: 'manual-existing',
+      manual: true,
+      discipline: 'MX',
+      homeName: 'Saved Home',
+      guestName: 'Saved Guest',
+      endedAt: new Date('2026-11-02T11:00').getTime(),
+      games: [{ homeScore: 21, guestScore: 18 }],
+    }
+    render(
+      <PastMatches
+        matches={[match]}
+        onBack={vi.fn()}
+        onAddMatch={vi.fn()}
+        onUpdateMatch={vi.fn()}
+        onDeleteMatch={vi.fn()}
+        locale="en"
+        messages={messages}
+      />,
+    )
+
+    const editButton = screen.getByRole('button', {
+      name: messages.editMatch(match.homeName, match.guestName),
+    })
+    fireEvent.click(editButton)
+    fireEvent.change(screen.getByRole('textbox', { name: messages.home }), {
+      target: { value: 'Unsaved Home' },
+    })
+    fireEvent.click(editButton)
+    expect(screen.getByRole('textbox', { name: messages.home })).toHaveValue('Saved Home')
+    expect(screen.getByRole('spinbutton', {
+      name: messages.gameScoreInput(1, match.homeName),
+    })).toHaveValue(21)
+
+    fireEvent.click(screen.getAllByRole('button', { name: messages.cancel })[0])
+    fireEvent.click(screen.getByRole('button', { name: messages.addMatchResult }))
+    expect(screen.getByRole('textbox', { name: messages.home })).toHaveValue(messages.home)
+    fireEvent.change(screen.getByRole('textbox', { name: messages.home }), {
+      target: { value: 'Unsaved New Home' },
+    })
+    fireEvent.click(screen.getAllByRole('button', { name: messages.cancel })[0])
+    fireEvent.click(screen.getByRole('button', { name: messages.addMatchResult }))
+    expect(screen.getByRole('textbox', { name: messages.home })).toHaveValue(messages.home)
+    expect(screen.getByRole('spinbutton', {
+      name: messages.gameScoreInput(1, messages.home),
+    })).toHaveValue(null)
+  })
+
+  it('manually adds a match result and deletes it from history', async () => {
+    const user = userEvent.setup()
+    window.localStorage.clear()
+    render(<App locale="en" />)
+
+    await user.click(settingsButton())
+    await user.click(screen.getByRole('button', { name: 'Past matches' }))
+    await user.click(screen.getByRole('button', { name: 'Add result' }))
+
+    await user.clear(screen.getByRole('textbox', { name: 'Home' }))
+    await user.type(screen.getByRole('textbox', { name: 'Home' }), 'Manual Home')
+    await user.clear(screen.getByRole('textbox', { name: 'Guest' }))
+    await user.type(screen.getByRole('textbox', { name: 'Guest' }), 'Manual Guest')
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Discipline' }), 'MX')
+    await user.type(screen.getByRole('spinbutton', { name: 'Game 1 Manual Home points' }), '21')
+    await user.type(screen.getByRole('spinbutton', { name: 'Game 1 Manual Guest points' }), '18')
+    await user.clear(screen.getByLabelText('End'))
+    await user.type(screen.getByLabelText('End'), '2026-11-02T11:00')
+    await user.click(screen.getByRole('button', { name: 'Save result' }))
+
+    expect(screen.getByRole('heading', { name: 'Manual Home vs Manual Guest' })).toBeInTheDocument()
+    expect(screen.getByText('XD')).toHaveClass('past-match__discipline')
+    expect(screen.queryByText('Start')).not.toBeInTheDocument()
+    expect(screen.getByText('End')).toBeInTheDocument()
+    expect(window.localStorage.getItem('badminton-scoreboard:past-matches')).toContain(
+      'Manual Home',
+    )
+    expect(JSON.parse(window.localStorage.getItem('badminton-scoreboard:past-matches') ?? '[]')[0])
+      .not.toHaveProperty('startedAt')
+
+    await user.click(screen.getByRole('button', {
+      name: 'Edit Manual Home vs Manual Guest',
+    }))
+    await user.clear(screen.getByRole('textbox', { name: 'Home' }))
+    await user.type(screen.getByRole('textbox', { name: 'Home' }), 'Edited Home')
+    await user.clear(screen.getByRole('spinbutton', { name: 'Game 1 Edited Home points' }))
+    await user.type(screen.getByRole('spinbutton', { name: 'Game 1 Edited Home points' }), '22')
+    await user.click(screen.getByRole('button', { name: 'Update result' }))
+
+    expect(screen.getByRole('heading', { name: 'Edited Home vs Manual Guest' })).toBeInTheDocument()
+    expect(screen.getByRole('row', { name: 'Edited Home 22' })).toBeInTheDocument()
+    expect(JSON.parse(window.localStorage.getItem('badminton-scoreboard:past-matches') ?? '[]'))
+      .toHaveLength(1)
+
+    await user.click(screen.getByRole('button', { name: 'Delete Edited Home vs Manual Guest' }))
+    const confirmation = screen.getByText(
+      'Delete the match result for Edited Home vs Manual Guest?',
+    ).closest('.past-match__delete-confirmation')
+    expect(confirmation).not.toBeNull()
+    await user.click(within(confirmation as HTMLElement).getByRole('button', {
+      name: 'Delete Edited Home vs Manual Guest',
+    }))
+
+    expect(screen.queryByRole('heading', { name: 'Edited Home vs Manual Guest' })).not.toBeInTheDocument()
+    expect(screen.getByText('No completed matches yet')).toBeInTheDocument()
+    expect(window.localStorage.getItem('badminton-scoreboard:past-matches')).toBe('[]')
   })
 })
 
@@ -392,6 +501,8 @@ describe('badminton scoreboard UI', () => {
     expect(screen.getByRole('heading', { name: 'Vergangene Matches' })).toBeInTheDocument()
     const matchTitle = screen.getByRole('heading', { name: /Home Team\s+gegen\s+Guest Team/ })
     expect(matchTitle).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Home Team gegen Guest Team bearbeiten' }))
+      .not.toBeInTheDocument()
     const disciplinePill = screen.getByText('MX')
     expect(disciplinePill).toHaveClass('past-match__discipline')
     expect(matchTitle.closest('.past-match__header')?.firstElementChild).toBe(disciplinePill)

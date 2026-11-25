@@ -7,6 +7,7 @@ import { ScoringSystem } from './components/scoringSystem'
 import {
   getLocale,
   getMessages,
+  disciplineCodes,
   saveLocale,
   translateDiscipline,
   type Locale,
@@ -48,8 +49,6 @@ const scoringModes = [
     scoringSystem: ScoringSystem.bestOfFiveTo11,
   },
 ] as const
-
-const disciplineCodes = ['HD1', 'HD2', 'DD', 'HE1', 'HE2', 'DE', 'HE3', 'MX'] as const
 
 function App({ scoringSystem, locale: localeOverride }: AppProps) {
   const [locale, setLocale] = useState(() => localeOverride ?? getLocale())
@@ -155,6 +154,7 @@ function App({ scoringSystem, locale: localeOverride }: AppProps) {
   function archiveMatch(match: MatchCompletion) {
     const record: PastMatchRecord = {
       id: `${match.startedAt}`,
+      manual: false,
       discipline,
       homeName: teamNames.home || messages.home,
       guestName: teamNames.guest || messages.guest,
@@ -169,6 +169,20 @@ function App({ scoringSystem, locale: localeOverride }: AppProps) {
     setPastMatches((current) => [record, ...current.filter((item) => item.id !== record.id)])
   }
 
+  function addPastMatch(match: PastMatchRecord) {
+    setPastMatches((current) => [match, ...current])
+  }
+
+  function updatePastMatch(updatedMatch: PastMatchRecord) {
+    setPastMatches((current) => current.map((match) =>
+      match.id === updatedMatch.id ? updatedMatch : match,
+    ))
+  }
+
+  function deletePastMatch(matchId: string) {
+    setPastMatches((current) => current.filter((match) => match.id !== matchId))
+  }
+
   return (
     <Scoreboard
       key={scoreboardInstance}
@@ -181,7 +195,10 @@ function App({ scoringSystem, locale: localeOverride }: AppProps) {
             locale={locale}
             messages={messages}
             matches={pastMatches}
+            onAddMatch={addPastMatch}
             onBack={() => setShowPastMatches(false)}
+            onDeleteMatch={deletePastMatch}
+            onUpdateMatch={updatePastMatch}
           />
         ) : (
     <main className="scoreboard">

@@ -36,6 +36,8 @@ A game normally requires a two-point lead. The point cap ends the game even if t
 
 The Settings menu lets you edit the Home and Guest team names, choose a badminton discipline, and select a scoring format. The flag buttons switch between German and English; that choice is saved for future visits. You can also open past matches or reset the current score and match history.
 
+In **Past matches**, you can manually add results, edit manually entered results, or delete any result. Automatically archived matches can be deleted but not edited. Manual results ask only for an end time; automatically tracked matches include both start and end times.
+
 Completed matches are stored in the browser's local storage on the current device.
 
 ## Project Checks
@@ -54,7 +56,7 @@ npm run build
 
 ### Game in Progress
 
-![Scoreboard during a game at 8–5](docs/screenshots/scoreboard-in-play.png)
+![Scoreboard during a game at 8–5 with XD discipline selected](docs/screenshots/scoreboard-in-play.png)
 
 ### Renamed Teams
 
@@ -64,10 +66,14 @@ npm run build
 
 ![Settings with team names, discipline, scoring format, and language controls](docs/screenshots/settings.png)
 
+### Manual Match Entry
+
+![Manual match entry with renamed teams, game score, discipline, and end time only](docs/screenshots/manual-match-form.png)
+
 ### Match Complete
 
 ![Completed match with winner and game scores](docs/screenshots/match-complete.png)
 
 ### Past Matches
 
-![Past matches with Northside and Riverside alongside the default Home and Guest teams](docs/screenshots/past-matches.png)
+![Past matches showing edit and delete controls for the manual Northside and Riverside result, and delete-only for the automatic Home and Guest result](docs/screenshots/past-matches.png)

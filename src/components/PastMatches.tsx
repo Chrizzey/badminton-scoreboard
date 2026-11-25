@@ -1,12 +1,16 @@
-import { ArrowLeft } from 'lucide-react'
-import { translateDiscipline, type Locale, type Messages } from '../i18n'
+import { useState } from 'react'
+import { ArrowLeft, Plus } from 'lucide-react'
+import ManualMatchForm from './ManualMatchForm'
+import PastMatchCard from './PastMatchCard'
+import { type Locale, type Messages } from '../i18n'
 
 export interface PastMatchRecord {
   id: string
+  manual?: boolean
   discipline: string
   homeName: string
   guestName: string
-  startedAt: number
+  startedAt?: number
   endedAt: number
   games: Array<{
     homeScore: number
@@ -17,18 +21,49 @@ export interface PastMatchRecord {
 interface PastMatchesProps {
   matches: PastMatchRecord[]
   onBack: () => void
+  onAddMatch: (match: PastMatchRecord) => void
+  onUpdateMatch: (match: PastMatchRecord) => void
+  onDeleteMatch: (matchId: string) => void
   locale: Locale
   messages: Messages
 }
 
-function formatDateTime(timestamp: number, locale: Locale): string {
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(new Date(timestamp))
-}
+export default function PastMatches({
+  matches,
+  onBack,
+  onAddMatch,
+  onUpdateMatch,
+  onDeleteMatch,
+  locale,
+  messages,
+}: PastMatchesProps) {
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [editingMatch, setEditingMatch] = useState<PastMatchRecord | null>(null)
+  const [formKey, setFormKey] = useState(0)
+  const [deletingMatchId, setDeletingMatchId] = useState<string | null>(null)
 
-export default function PastMatches({ matches, onBack, locale, messages }: PastMatchesProps) {
+  function saveManualMatch(match: PastMatchRecord) {
+    if (editingMatch?.id) {
+      onUpdateMatch(match)
+    } else {
+      onAddMatch(match)
+    }
+    setShowAddForm(false)
+    setEditingMatch(null)
+  }
+
+  function startNewMatchEntry() {
+    setEditingMatch(null)
+    setFormKey((current) => current + 1)
+    setShowAddForm((visible) => !visible)
+  }
+
+  function startEditingMatch(match: PastMatchRecord) {
+    setEditingMatch(match)
+    setFormKey((current) => current + 1)
+    setShowAddForm(true)
+  }
+
   return (
     <main className="past-matches-page">
       <header className="past-matches-page__header">
@@ -42,70 +77,46 @@ export default function PastMatches({ matches, onBack, locale, messages }: PastM
           <span>{messages.historyBackLabel}</span>
         </button>
         <h1>{messages.historyTitle}</h1>
+        <button
+          className="past-matches-add-button"
+          type="button"
+          aria-label={messages.addMatchResult}
+          title={messages.addMatchResult}
+          onClick={startNewMatchEntry}
+        >
+          <Plus aria-hidden="true" />
+        </button>
       </header>
       <div className="past-matches-list">
+        {showAddForm && (
+          <ManualMatchForm
+            key={formKey}
+            match={editingMatch}
+            onSave={saveManualMatch}
+            onCancel={() => setShowAddForm(false)}
+            locale={locale}
+            messages={messages}
+          />
+        )}
         {matches.length === 0 ? (
-          <p className="past-matches-empty">{messages.historyEmpty}</p>
+          !showAddForm && <p className="past-matches-empty">{messages.historyEmpty}</p>
         ) : (
-          matches.map((match) => {
-            const homeWins = match.games.filter((game) => game.homeScore > game.guestScore).length
-            const guestWins = match.games.filter((game) => game.guestScore > game.homeScore).length
-
-            return (
-              <article className="past-match" key={match.id}>
-                <header className="past-match__header">
-                  {match.discipline && match.discipline !== 'Keine' && (
-                    <span className="past-match__discipline">
-                      {translateDiscipline(match.discipline, locale)}
-                    </span>
-                  )}
-                  <div className="past-match__title">
-                    <h2>
-                      {match.homeName} <span>{messages.versus}</span> {match.guestName}
-                    </h2>
-                  </div>
-                </header>
-                <div className="past-match__results">
-                  <div className="past-match__scores">
-                    <table aria-label={messages.historyTableLabel}>
-                      <tbody>
-                        <tr className={homeWins > guestWins ? 'past-match__winner' : undefined}>
-                          <th scope="row">{match.homeName}</th>
-                          {match.games.map((game, index) => (
-                            <td key={`${match.id}-home-${index}`}>{game.homeScore}</td>
-                          ))}
-                        </tr>
-                        <tr className={guestWins > homeWins ? 'past-match__winner' : undefined}>
-                          <th scope="row">{match.guestName}</th>
-                          {match.games.map((game, index) => (
-                            <td key={`${match.id}-guest-${index}`}>{game.guestScore}</td>
-                          ))}
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                  <dl className="past-match__times">
-                    <div>
-                      <dt>{messages.startTime}</dt>
-                      <dd>
-                        <time dateTime={new Date(match.startedAt).toISOString()}>
-                          {formatDateTime(match.startedAt, locale)}
-                        </time>
-                      </dd>
-                    </div>
-                    <div>
-                      <dt>{messages.endTime}</dt>
-                      <dd>
-                        <time dateTime={new Date(match.endedAt).toISOString()}>
-                          {formatDateTime(match.endedAt, locale)}
-                        </time>
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-              </article>
-            )
-          })
+          matches.map((match) => (
+            <PastMatchCard
+              key={match.id}
+              match={match}
+              isDeleting={deletingMatchId === match.id}
+              onEdit={startEditingMatch}
+              onRequestDelete={() => setDeletingMatchId(match.id)}
+              onConfirmDelete={() => {
+                onDeleteMatch(match.id)
+                setDeletingMatchId(null)
+              }}
+              onCancelDelete={() => setDeletingMatchId(null)}
+              locale={locale}
+              messages={messages}
+            />
+          ))
         )}
       </div>
     </main>

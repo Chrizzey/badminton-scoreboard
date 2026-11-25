@@ -6,6 +6,17 @@ export interface Messages {
   guest: string;
   undo: string;
   settings: string;
+  addMatchResult: string;
+  newMatchResult: string;
+  editMatch: (homeName: string, guestName: string) => string;
+  saveMatchResult: string;
+  updateMatchResult: string;
+  gameScoreInput: (gameNumber: number, teamName: string) => string;
+  addGame: string;
+  removeGame: (gameNumber: number) => string;
+  deleteMatch: (homeName: string, guestName: string) => string;
+  confirmDeleteMatch: (homeName: string, guestName: string) => string;
+  tiedGameScore: string;
   language: string;
   switchToEnglish: string;
   switchToGerman: string;
@@ -66,6 +77,58 @@ export const translations = {
   settings: {
     en: "Settings",
     de: "Einstellungen",
+  },
+  addMatchResult: {
+    en: "Add result",
+    de: "Ergebnis hinzufügen",
+  },
+  newMatchResult: {
+    en: "Add match result",
+    de: "Match-Ergebnis eintragen",
+  },
+  editMatch: {
+    en: (homeName: string, guestName: string) =>
+      `Edit ${homeName} vs ${guestName}`,
+    de: (homeName: string, guestName: string) =>
+      `${homeName} gegen ${guestName} bearbeiten`,
+  },
+  saveMatchResult: {
+    en: "Save result",
+    de: "Ergebnis speichern",
+  },
+  updateMatchResult: {
+    en: "Update result",
+    de: "Ergebnis aktualisieren",
+  },
+  gameScoreInput: {
+    en: (gameNumber: number, teamName: string) =>
+      `Game ${gameNumber} ${teamName} points`,
+    de: (gameNumber: number, teamName: string) =>
+      `Satz ${gameNumber}: Punkte ${teamName}`,
+  },
+  addGame: {
+    en: "Add game",
+    de: "Satz hinzufügen",
+  },
+  removeGame: {
+    en: (gameNumber: number) => `Remove game ${gameNumber}`,
+    de: (gameNumber: number) => `Satz ${gameNumber} entfernen`,
+  },
+  deleteMatch: {
+    en: (homeName: string, guestName: string) =>
+      `Delete ${homeName} vs ${guestName}`,
+    de: (homeName: string, guestName: string) =>
+      `${homeName} gegen ${guestName} löschen`,
+  },
+  confirmDeleteMatch: {
+    en: (homeName: string, guestName: string) =>
+      `Delete the match result for ${homeName} vs ${guestName}?`,
+    de: (homeName: string, guestName: string) =>
+      `Das Matchergebnis ${homeName} gegen ${guestName} löschen?`,
+  },
+  tiedGameScore: {
+    en: "Completed games cannot have tied scores.",
+    de: "Abgeschlossene Sätze können keinen Gleichstand haben.",
   },
   language: {
     en: "Language",
@@ -215,15 +278,18 @@ export function getMessages(locale: Locale): Messages {
   ) as unknown as Messages;
 }
 
-type DisciplineCode =
-  | "HD1"
-  | "HD2"
-  | "DD"
-  | "HE1"
-  | "HE2"
-  | "DE"
-  | "HE3"
-  | "MX";
+export const disciplineCodes = [
+  "HD1",
+  "HD2",
+  "DD",
+  "HE1",
+  "HE2",
+  "DE",
+  "HE3",
+  "MX",
+] as const;
+
+type DisciplineCode = (typeof disciplineCodes)[number];
 
 const disciplineTranslations = {
   HD1: {
