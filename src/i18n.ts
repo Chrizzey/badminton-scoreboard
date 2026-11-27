@@ -60,7 +60,7 @@ type TranslationCatalog = {
 export const translations = {
   appTitle: {
     en: "Badminton Scoreboard",
-    de: "Badminton-Spielstand",
+    de: "Badminton Scoreboard",
   },
   home: {
     en: "Home",
@@ -175,8 +175,8 @@ export const translations = {
     de: "Moduswechsel bestätigen",
   },
   modeSwitchWarning: {
-    en: "Changing the mode resets the score and history. Continue?",
-    de: "Ein Moduswechsel setzt Spielstand und Historie zurück. Fortfahren?",
+    en: "Changing the mode resets the score and played games.",
+    de: "Ein Moduswechsel setzt Spielstand und Sätze zurück.",
   },
   cancel: {
     en: "Cancel",
@@ -191,16 +191,16 @@ export const translations = {
     de: "Vergangene Matches",
   },
   resetScoreAndHistory: {
-    en: "Reset score and history",
-    de: "Spielstand und Historie zurücksetzen",
+    en: "Reset score and played games",
+    de: "Spielstand und Sätze zurücksetzen",
   },
   confirmReset: {
     en: "Confirm reset",
     de: "Reset bestätigen",
   },
   resetWarning: {
-    en: "Are you sure you want to reset the score and all history?",
-    de: "Spielstand und gesamte Historie wirklich zurücksetzen?",
+    en: "Are you sure you want to reset the score and all played games?",
+    de: "Spielstand und alle gespielten Sätze wirklich zurücksetzen?",
   },
   reset: {
     en: "Reset",
