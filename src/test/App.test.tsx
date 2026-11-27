@@ -460,6 +460,43 @@ describe('badminton scoreboard UI', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Match gewonnen: Heim')
   })
 
+  it('shows each team’s game scores on the match-won screen after ends switch', () => {
+    const scoringSystem = new ScoringSystem({
+      pointsToWin: 3,
+      pointCap: 3,
+      gamesToWin: 2,
+      maxGames: 3,
+      endSwitch: { gameNumber: 3, score: 2 },
+    })
+    render(<App locale="en" scoringSystem={scoringSystem} />)
+
+    clickTile(1)
+    winGame(0, 3)
+    fireEvent.click(screen.getByRole('button', { name: '2. Game' }))
+    winGame(0, 3)
+    fireEvent.click(screen.getByRole('button', { name: '3. Game' }))
+    clickTile(0, 2)
+    clickTile(1)
+
+    expect(screen.getByRole('status')).toHaveTextContent('Match won: Home')
+    const table = screen.getByRole('table', {
+      name: 'Scores by team, games in chronological order',
+    })
+    const rows = within(table).getAllByRole('row')
+    expect(rows.map((row) => within(row).getByRole('rowheader').textContent))
+      .toEqual(['Guest', 'Home'])
+    expect(rows.map((row) => within(row).getAllByRole('cell').map((cell) => cell.textContent)))
+      .toEqual([['1', '3', '0'], ['3', '0', '3']])
+    expect(rows.map((row) => within(row).getAllByRole('cell').map((cell) =>
+      cell.classList.contains('game-scores__score--winner'),
+    ))).toEqual([[false, true, false], [true, false, true]])
+    expect(rows[1]).toHaveClass('game-scores__winner')
+    expect(rows[0]).not.toHaveClass('game-scores__winner')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo last action' }))
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+  })
+
   it('retains and displays all five games in a best-of-five match', () => {
     render(<App scoringSystem={ScoringSystem.bestOfFiveTo11} />)
 
@@ -474,6 +511,10 @@ describe('badminton scoreboard UI', () => {
     expect(screen.getByRole('status')).toBeInTheDocument()
     expect(screen.getByLabelText('Ergebnisse abgeschlossener Spiele').children).toHaveLength(5)
     expect(screen.getByLabelText('Ergebnisse abgeschlossener Spiele')).toHaveTextContent('5')
+    const table = screen.getByRole('table')
+    expect(within(table).getAllByRole('row').map((row) =>
+      within(row).getAllByRole('cell').length,
+    )).toEqual([5, 5])
   })
 
   it('archives match details and restores them after remounting the app', async () => {
@@ -518,8 +559,8 @@ describe('badminton scoreboard UI', () => {
       'Home Team',
       'Guest Team',
     ])
-    expect(within(table).getAllByRole('row')[0]).toHaveClass('past-match__winner')
-    expect(within(table).getAllByRole('row')[1]).not.toHaveClass('past-match__winner')
+    expect(within(table).getAllByRole('row')[0]).toHaveClass('game-scores__winner')
+    expect(within(table).getAllByRole('row')[1]).not.toHaveClass('game-scores__winner')
     expect(within(table).getAllByRole('cell').map((cell) => cell.textContent)).toEqual([
       '21',
       '21',

@@ -17,7 +17,7 @@ Open the local URL printed by Vite.
 
 - Tap a team's side of the scoreboard to add a point.
 - Use **Undo** to reverse the latest scoring action.
-- When a game ends, choose the next game to continue the match. The match is saved to history when complete.
+- When a game ends, choose the next game to continue the match. The match-won screen shows each game's score, and the match is saved to history.
 - Use **Switch sides** before scoring if the teams need to change ends.
 - Use the fullscreen control for a larger court-side display.
 - Open **Settings** and choose **Past matches** to review completed results.

@@ -1,6 +1,7 @@
 import { Pencil, Trash2 } from 'lucide-react'
 import { translateDiscipline, type Locale, type Messages } from '../i18n'
 import type { PastMatchRecord } from './PastMatches'
+import GameScores from './GameScores'
 
 interface PastMatchCardProps {
   match: PastMatchRecord
@@ -30,8 +31,6 @@ export default function PastMatchCard({
   locale,
   messages,
 }: PastMatchCardProps) {
-  const homeWins = match.games.filter((game) => game.homeScore > game.guestScore).length
-  const guestWins = match.games.filter((game) => game.guestScore > game.homeScore).length
   const isManual = match.manual || match.id.startsWith('manual-')
 
   return (
@@ -83,22 +82,11 @@ export default function PastMatchCard({
       )}
       <div className="past-match__results">
         <div className="past-match__scores">
-          <table aria-label={messages.historyTableLabel}>
-            <tbody>
-              <tr className={homeWins > guestWins ? 'past-match__winner' : undefined}>
-                <th scope="row">{match.homeName}</th>
-                {match.games.map((game, index) => (
-                  <td key={`${match.id}-home-${index}`}>{game.homeScore}</td>
-                ))}
-              </tr>
-              <tr className={guestWins > homeWins ? 'past-match__winner' : undefined}>
-                <th scope="row">{match.guestName}</th>
-                {match.games.map((game, index) => (
-                  <td key={`${match.id}-guest-${index}`}>{game.guestScore}</td>
-                ))}
-              </tr>
-            </tbody>
-          </table>
+          <GameScores
+            label={messages.historyTableLabel}
+            teamNames={[match.homeName, match.guestName]}
+            games={match.games.map((game) => [game.homeScore, game.guestScore])}
+          />
         </div>
         <dl className="past-match__times">
           {match.startedAt !== undefined && (

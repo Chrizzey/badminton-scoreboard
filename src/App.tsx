@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { ArrowLeftRight, History, Maximize, Minimize, Settings, Undo2, X } from 'lucide-react'
 import Scoreboard, { type MatchCompletion, type ScoreboardSide } from './components/Scoreboard'
 import PastMatches, { type PastMatchRecord } from './components/PastMatches'
+import GameScores from './components/GameScores'
 import { ScoringSystem } from './components/scoringSystem'
 import {
   getLocale,
@@ -511,6 +512,17 @@ function App({ scoringSystem, locale: localeOverride }: AppProps) {
                 )
                   ? teamNames.home || messages.home
                   : teamNames.guest || messages.guest)}
+              </div>
+              <div className="match-over-scores">
+                <GameScores
+                  label={messages.historyTableLabel}
+                  teamNames={([0, 1] as const).map((side) =>
+                    side === scoreboard.homeSide
+                      ? teamNames.home || messages.home
+                      : teamNames.guest || messages.guest,
+                  ) as [string, string]}
+                  games={scoreboard.gameHistory.map((game) => game.scores)}
+                />
               </div>
               <button
                 className="next-game-button"
